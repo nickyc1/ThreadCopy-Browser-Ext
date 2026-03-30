@@ -210,6 +210,198 @@
 
     .screenshot-label svg { width: 16px; height: 16px; flex-shrink: 0; }
 
+    /* ---- Try it out (interactive demo) ---- */
+    .try-it {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 80px 24px 40px;
+    }
+
+    .try-it h2 {
+      text-align: center;
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      margin-bottom: 8px;
+    }
+
+    .try-it .try-sub {
+      text-align: center;
+      font-size: 14px;
+      color: var(--text-muted);
+      margin-bottom: 28px;
+    }
+
+    .fake-reddit {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      background: #fff;
+      position: relative;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+    }
+
+    .fake-reddit-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 16px;
+      background: #f6f7f8;
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .fake-reddit-bar .bar-dot {
+      width: 10px; height: 10px; border-radius: 50%;
+    }
+
+    .fake-reddit-bar .url-bar {
+      flex: 1;
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-size: 12px;
+      color: #666;
+      font-family: 'Inter', sans-serif;
+    }
+
+    .fake-post {
+      padding: 20px;
+    }
+
+    .fake-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .fake-avatar {
+      width: 28px; height: 28px; border-radius: 50%; background: #ff4500;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; color: #fff; font-weight: 700;
+    }
+
+    .fake-author { font-size: 12px; font-weight: 600; color: var(--text); }
+    .fake-time { font-size: 11px; color: var(--text-muted); }
+
+    .fake-post h3 {
+      font-size: 17px;
+      font-weight: 700;
+      margin-bottom: 10px;
+      line-height: 1.3;
+    }
+
+    .fake-post p {
+      font-size: 14px;
+      color: var(--text-secondary);
+      line-height: 1.55;
+      margin-bottom: 8px;
+    }
+
+    .fake-actions {
+      display: flex;
+      gap: 16px;
+      margin-top: 12px;
+      padding-top: 10px;
+      border-top: 1px solid #f0f0f0;
+    }
+
+    .fake-actions span {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .fake-divider {
+      height: 1px;
+      background: #f0f0f0;
+      margin: 0 20px;
+    }
+
+    .fake-comment {
+      padding: 16px 20px 16px 36px;
+      border-left: 2px solid #e8e8ec;
+      margin-left: 20px;
+    }
+
+    .fake-comment p {
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    /* The demo ThreadCopy button */
+    .demo-tc-btn {
+      position: absolute;
+      top: 50%;
+      right: 16px;
+      transform: translateY(-50%);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 18px;
+      background: var(--pink);
+      color: #fff;
+      border: none;
+      border-radius: 50px;
+      font-family: 'Inter', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.15s;
+      z-index: 2;
+      box-shadow: 0 4px 16px rgba(255, 45, 155, 0.3);
+    }
+
+    .demo-tc-btn:hover {
+      background: var(--pink-hover);
+      transform: translateY(-50%) translateX(-2px);
+    }
+
+    .demo-tc-btn svg {
+      width: 14px; height: 14px; stroke: var(--green); fill: none;
+    }
+
+    .demo-tc-btn.copied {
+      background: #0d9668;
+    }
+
+    .demo-toast {
+      position: absolute;
+      top: calc(50% - 44px);
+      right: 16px;
+      background: #1a1a2e;
+      color: #10b981;
+      font-family: 'Inter', sans-serif;
+      font-size: 12px;
+      font-weight: 500;
+      padding: 8px 14px;
+      border-radius: 8px;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      opacity: 0;
+      transform: translateY(6px);
+      transition: all 0.25s;
+      pointer-events: none;
+      z-index: 3;
+    }
+
+    .demo-toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .try-hint {
+      text-align: center;
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-top: 16px;
+    }
+
+    .try-hint strong { color: var(--text-secondary); }
+
     /* ---- How it works ---- */
     .how {
       max-width: 800px;
@@ -427,6 +619,70 @@
     </div>
   </section>
 
+  <!-- Try it out -->
+  <section class="try-it">
+    <h2>Try it out</h2>
+    <p class="try-sub">Click the pink ThreadCopy button to copy this thread to your clipboard.</p>
+
+    <div class="fake-reddit" id="demo-thread">
+      <div class="fake-reddit-bar">
+        <span class="bar-dot" style="background:#ff5f57"></span>
+        <span class="bar-dot" style="background:#ffbd2e"></span>
+        <span class="bar-dot" style="background:#28c840"></span>
+        <span class="url-bar">reddit.com/r/productivity/comments/abc123/</span>
+      </div>
+
+      <div class="fake-post">
+        <div class="fake-meta">
+          <div class="fake-avatar">r/</div>
+          <div>
+            <span class="fake-author">u/threadfan42</span>
+            <span class="fake-time"> &middot; 3h ago</span>
+          </div>
+        </div>
+        <h3>What's the fastest way to save an entire thread for later?</h3>
+        <p>I keep finding great threads on X and Reddit that I want to reference later — product breakdowns, strategy threads, long comment chains with good advice.</p>
+        <p>But bookmarking doesn't work because the thread is gone in a week, and screenshotting a 20-tweet thread is painful. Is there a tool that just copies the whole thing as text?</p>
+        <div class="fake-actions">
+          <span>&#9650; 847</span>
+          <span>&#128172; 23 comments</span>
+          <span>&#8599; Share</span>
+        </div>
+      </div>
+
+      <div class="fake-divider"></div>
+
+      <div class="fake-comment">
+        <div class="fake-meta">
+          <span class="fake-author">u/devtools_nerd</span>
+          <span class="fake-time"> &middot; 2h ago</span>
+        </div>
+        <p>I use ThreadCopy for exactly this. It's a Chrome extension — you click one button and the entire thread (posts + replies) gets copied as plain text. I paste into Notion or straight into Claude.</p>
+      </div>
+
+      <div class="fake-divider"></div>
+
+      <div class="fake-comment">
+        <div class="fake-meta">
+          <span class="fake-author">u/sarahbuilds</span>
+          <span class="fake-time"> &middot; 1h ago</span>
+        </div>
+        <p>+1 for ThreadCopy. Works on X, LinkedIn, and Reddit. The best part is it auto-expands those "Show more" truncated posts before copying so you get the full text.</p>
+      </div>
+
+      <button class="demo-tc-btn" id="demo-copy-btn" onclick="demoCopy()">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+        </svg>
+        ThreadCopy
+      </button>
+      <div class="demo-toast" id="demo-toast">Copied 3 posts to clipboard</div>
+    </div>
+
+    <p class="try-hint"><strong>Go ahead — paste it somewhere.</strong> That's what the extension does on every thread.</p>
+  </section>
+
   <!-- How it works -->
   <section class="how">
     <h2>How it works</h2>
@@ -490,5 +746,52 @@
     <p>ThreadCopy &middot; <a href="https://github.com/nickyc1/ThreadCopy-Browser-Ext">GitHub</a> &middot; <a href="/privacy.html">Privacy</a> &middot; Open Source</p>
   </footer>
 
+<script>
+function demoCopy() {
+  var text = "=== Thread from Reddit ===\n" +
+    "URL: https://reddit.com/r/productivity/comments/abc123/\n" +
+    "Copied on: " + new Date().toLocaleString() + "\n" +
+    "========================================\n\n" +
+    "[ORIGINAL POST]\n" +
+    "Author: u/threadfan42\n" +
+    "Time: 3h ago\n" +
+    "---\n" +
+    "What's the fastest way to save an entire thread for later?\n\n" +
+    "I keep finding great threads on X and Reddit that I want to reference later \u2014 product breakdowns, strategy threads, long comment chains with good advice.\n\n" +
+    "But bookmarking doesn't work because the thread is gone in a week, and screenshotting a 20-tweet thread is painful. Is there a tool that just copies the whole thing as text?\n\n" +
+    "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n\n" +
+    "[Reply 1]\n" +
+    "Author: u/devtools_nerd\n" +
+    "Time: 2h ago\n" +
+    "---\n" +
+    "I use ThreadCopy for exactly this. It's a Chrome extension \u2014 you click one button and the entire thread (posts + replies) gets copied as plain text. I paste into Notion or straight into Claude.\n\n" +
+    "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n\n" +
+    "[Reply 2]\n" +
+    "Author: u/sarahbuilds\n" +
+    "Time: 1h ago\n" +
+    "---\n" +
+    "+1 for ThreadCopy. Works on X, LinkedIn, and Reddit. The best part is it auto-expands those \"Show more\" truncated posts before copying so you get the full text.\n\n" +
+    "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n";
+
+  navigator.clipboard.writeText(text).then(function() {
+    var btn = document.getElementById('demo-copy-btn');
+    var toast = document.getElementById('demo-toast');
+
+    btn.classList.add('copied');
+    btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg> Copied!';
+
+    toast.classList.add('show');
+
+    setTimeout(function() {
+      toast.classList.remove('show');
+    }, 3000);
+
+    setTimeout(function() {
+      btn.classList.remove('copied');
+      btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" stroke="#00ff88" fill="none"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg> ThreadCopy';
+    }, 2500);
+  });
+}
+</script>
 </body>
 </html>
