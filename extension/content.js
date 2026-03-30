@@ -1,4 +1,4 @@
-// Thread Copier - Content Script
+// ThreadCopy - Content Script
 // Supports X (Twitter), LinkedIn, and Reddit
 
 (function() {
@@ -517,11 +517,11 @@
 
   // Show toast notification
   function showToast(message, isError = false) {
-    let toast = document.getElementById('thread-copier-toast');
+    let toast = document.getElementById('threadcopy-toast');
     
     if (!toast) {
       toast = document.createElement('div');
-      toast.id = 'thread-copier-toast';
+      toast.id = 'threadcopy-toast';
       document.body.appendChild(toast);
     }
 
@@ -540,12 +540,12 @@
   // Create the floating copy button
   function createCopyButton() {
     // Remove existing button if any
-    const existingBtn = document.getElementById('thread-copier-btn');
+    const existingBtn = document.getElementById('threadcopy-btn');
     if (existingBtn) {
       existingBtn.remove();
     }
 
-    const existingToast = document.getElementById('thread-copier-toast');
+    const existingToast = document.getElementById('threadcopy-toast');
     if (existingToast) {
       existingToast.remove();
     }
@@ -556,7 +556,7 @@
     }
 
     const button = document.createElement('button');
-    button.id = 'thread-copier-btn';
+    button.id = 'threadcopy-btn';
     button.innerHTML = `
       <span class="icon">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -564,7 +564,7 @@
           <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
         </svg>
       </span>
-      <span class="text">Copy Thread</span>
+      <span class="text">ThreadCopy</span>
     `;
 
     button.addEventListener('click', async () => {
@@ -602,7 +602,7 @@
         
         setTimeout(() => {
           button.classList.remove('copied');
-          button.querySelector('.text').textContent = 'Copy Thread';
+          button.querySelector('.text').textContent = 'ThreadCopy';
         }, 2000);
       } else {
         showToast('Failed to copy to clipboard', true);
@@ -639,7 +639,7 @@
         (m.target.id && m.target.id.includes('content'))
       );
       
-      if (shouldRecheck && isThreadPage() && !document.getElementById('thread-copier-btn')) {
+      if (shouldRecheck && isThreadPage() && !document.getElementById('threadcopy-btn')) {
         createCopyButton();
       }
     });

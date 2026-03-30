@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Thread Copier</title>
+  <title>ThreadCopy</title>
   <style>
     * {
       margin: 0;
@@ -29,7 +29,7 @@
     .logo {
       width: 40px;
       height: 40px;
-      background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+      background: #ff2d9b;
       border-radius: 10px;
       display: flex;
       align-items: center;
@@ -39,7 +39,7 @@
     .logo svg {
       width: 24px;
       height: 24px;
-      stroke: white;
+      stroke: #00ff88;
       fill: none;
     }
 
@@ -127,7 +127,7 @@
     }
 
     .highlight {
-      color: #3b82f6;
+      color: #00ff88;
       font-weight: 500;
     }
 
@@ -142,28 +142,28 @@
 <body>
   <div class="header">
     <div class="logo">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
         <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
         <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
       </svg>
     </div>
     <div>
-      <div class="title">Thread Copier</div>
+      <div class="title">ThreadCopy</div>
       <div class="subtitle">Copy threads with one click</div>
     </div>
   </div>
 
   <div class="section">
     <div class="section-title">Supported Platforms</div>
-    
+
     <div class="platform">
-      <div class="platform-icon twitter">𝕏</div>
+      <div class="platform-icon twitter">&#x1D54F;</div>
       <div>
         <div class="platform-name">X (Twitter)</div>
         <div class="platform-desc">Threads & replies</div>
       </div>
     </div>
-    
+
     <div class="platform">
       <div class="platform-icon linkedin">in</div>
       <div>
@@ -171,7 +171,7 @@
         <div class="platform-desc">Posts & comments</div>
       </div>
     </div>
-    
+
     <div class="platform">
       <div class="platform-icon reddit">r/</div>
       <div>
@@ -185,14 +185,14 @@
     <div class="section-title">How to Use</div>
     <ol class="instructions">
       <li>Navigate to a <span class="highlight">thread or post</span> on any supported platform</li>
-      <li>Look for the <span class="highlight">floating button</span> in the bottom-right corner</li>
-      <li>Click <span class="highlight">"Copy Thread"</span> to copy everything</li>
+      <li>Look for the <span class="highlight">ThreadCopy button</span> in the top-right corner</li>
+      <li>Click <span class="highlight">"ThreadCopy"</span> to copy everything</li>
       <li>Paste anywhere - LLMs, notes, docs</li>
     </ol>
   </div>
 
   <div class="footer">
-    v1.0.0 • Thread Copier
+    v1.0.0 &bull; ThreadCopy
   </div>
 </body>
 </html>

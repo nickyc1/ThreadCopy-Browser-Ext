@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Thread Copier",
+  "name": "ThreadCopy",
   "version": "1.0.0",
   "description": "Copy entire threads from X (Twitter), LinkedIn, and Reddit with one click",
   "permissions": ["activeTab", "clipboardWrite"],

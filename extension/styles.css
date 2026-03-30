@@ -1,17 +1,17 @@
 /* Thread Copier - Floating Button Styles */
 
-#thread-copier-btn {
+#threadcopy-btn {
   position: fixed;
-  bottom: 24px;
+  top: 24px;
   right: 24px;
   z-index: 2147483647;
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 12px 20px;
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  background: #ff2d9b;
   color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 50px;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   font-size: 14px;
@@ -22,23 +22,23 @@
   user-select: none;
 }
 
-#thread-copier-btn:hover {
+#threadcopy-btn:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 28px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.1);
-  background: linear-gradient(135deg, #1f1f3a 0%, #1a2744 100%);
+  background: #ff47a8;
 }
 
-#thread-copier-btn:active {
+#threadcopy-btn:active {
   transform: translateY(0);
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
 }
 
-#thread-copier-btn.copied {
+#threadcopy-btn.copied {
   background: linear-gradient(135deg, #0d4f3c 0%, #0a3d2e 100%);
   border-color: rgba(16, 185, 129, 0.3);
 }
 
-#thread-copier-btn .icon {
+#threadcopy-btn .icon {
   width: 18px;
   height: 18px;
   display: flex;
@@ -46,17 +46,17 @@
   justify-content: center;
 }
 
-#thread-copier-btn .icon svg {
+#threadcopy-btn .icon svg {
   width: 18px;
   height: 18px;
   fill: none;
-  stroke: currentColor;
+  stroke: #00ff88;
 }
 
 /* Toast notification */
-#thread-copier-toast {
+#threadcopy-toast {
   position: fixed;
-  bottom: 90px;
+  top: 90px;
   right: 24px;
   z-index: 2147483647;
   padding: 12px 20px;
@@ -74,17 +74,17 @@
   pointer-events: none;
 }
 
-#thread-copier-toast.show {
+#threadcopy-toast.show {
   opacity: 1;
   transform: translateY(0);
 }
 
-#thread-copier-toast.error {
+#threadcopy-toast.error {
   color: #f87171;
   border-color: rgba(248, 113, 113, 0.3);
 }
 
 /* Hide button when not on thread page */
-#thread-copier-btn.hidden {
+#threadcopy-btn.hidden {
   display: none !important;
 }
