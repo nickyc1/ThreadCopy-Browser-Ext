@@ -28,10 +28,11 @@
         return /^\/[^/]+\/status\/\d+/.test(path);
       
       case 'linkedin':
-        // LinkedIn post: /feed/update/ or /posts/
-        return path.includes('/feed/update/') || 
+        // LinkedIn post: /feed/update/ or /posts/ or /activity/
+        return path.includes('/feed/update/') ||
                path.includes('/posts/') ||
-               path.includes('/pulse/');
+               path.includes('/pulse/') ||
+               path.includes('/activity/');
       
       case 'reddit':
         // Reddit thread: /r/subreddit/comments/
@@ -42,11 +43,51 @@
     }
   }
 
+  // Auto-expand truncated content before extraction
+  async function expandAllContent(platform) {
+    let buttons = [];
+
+    if (platform === 'twitter') {
+      // Click all "Show more" links in tweets
+      buttons = document.querySelectorAll('[data-testid="tweet-text-show-more-link"], [role="link"][href*="/status/"]');
+      // Also try generic show-more buttons within tweet text
+      document.querySelectorAll('article[data-testid="tweet"] [role="button"]').forEach(btn => {
+        if (btn.textContent.trim().toLowerCase() === 'show more') {
+          buttons = [...buttons, btn];
+        }
+      });
+    } else if (platform === 'linkedin') {
+      // Click all "...see more" / "...more" buttons
+      buttons = document.querySelectorAll(
+        'button.feed-shared-inline-show-more-text, ' +
+        'button[aria-label*="see more"], ' +
+        'button[aria-label*="more"], ' +
+        '.see-more-less-toggle, ' +
+        '.feed-shared-text-view__see-more-less-toggle'
+      );
+      // Also find by text content
+      document.querySelectorAll('button, span[role="button"]').forEach(btn => {
+        const text = btn.textContent.trim().toLowerCase();
+        if (text === '…see more' || text === '…more' || text === 'see more' || text === 'show more') {
+          buttons = [...buttons, btn];
+        }
+      });
+    }
+
+    if (buttons.length > 0) {
+      buttons.forEach(btn => {
+        try { btn.click(); } catch(e) {}
+      });
+      // Wait for content to expand
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+  }
+
   // Extract thread content from Twitter/X
   function extractTwitterThread() {
     const tweets = [];
     const tweetElements = document.querySelectorAll('article[data-testid="tweet"]');
-    
+
     tweetElements.forEach((tweet, index) => {
       try {
         // Get author info
@@ -108,44 +149,154 @@
   // Extract thread content from LinkedIn
   function extractLinkedInThread() {
     const posts = [];
-    
-    // Main post
-    const mainPost = document.querySelector('.feed-shared-update-v2__description');
-    const mainAuthor = document.querySelector('.update-components-actor__name');
-    const mainHandle = document.querySelector('.update-components-actor__supplementary-actor-info');
-    const mainTime = document.querySelector('.update-components-actor__sub-description');
+
+    // Helper: find first matching element from multiple selectors
+    function q(selectors, parent = document) {
+      for (const sel of selectors) {
+        const el = parent.querySelector(sel);
+        if (el) return el;
+      }
+      return null;
+    }
+
+    // Main post - try multiple selector patterns (LinkedIn changes these frequently)
+    const mainPostSelectors = [
+      '.feed-shared-update-v2__description',
+      '.feed-shared-update-v2__commentary',
+      '.feed-shared-text-view',
+      '.feed-shared-inline-show-more-text',
+      '.update-components-text',
+      '[data-ad-preview="message"]',
+      '.break-words',
+    ];
+
+    const authorSelectors = [
+      '.update-components-actor__name',
+      '.feed-shared-actor__name',
+      'a.app-aware-link span[aria-hidden="true"]',
+      '.update-components-actor__title',
+    ];
+
+    const handleSelectors = [
+      '.update-components-actor__supplementary-actor-info',
+      '.update-components-actor__description',
+      '.feed-shared-actor__description',
+      '.update-components-actor__subtitle',
+    ];
+
+    const timeSelectors = [
+      '.update-components-actor__sub-description',
+      '.feed-shared-actor__sub-description',
+      'time',
+      'span.update-components-actor__sub-description-link',
+    ];
+
+    const mainPost = q(mainPostSelectors);
+    const mainAuthor = q(authorSelectors);
+    const mainHandle = q(handleSelectors);
+    const mainTime = q(timeSelectors);
 
     if (mainPost) {
       const images = [];
-      const imgElements = document.querySelectorAll('.feed-shared-image__image, .update-components-image img');
+      const imgElements = document.querySelectorAll(
+        '.feed-shared-image__image, ' +
+        '.update-components-image img, ' +
+        '.feed-shared-update-v2__content img, ' +
+        '.update-components-linkedin-video__container video'
+      );
       imgElements.forEach(img => {
-        if (img.src) {
-          images.push(img.src);
+        if (img.src && !img.src.includes('avatar') && !img.src.includes('profile')) {
+          images.push(img.src || img.poster);
         }
       });
 
       posts.push({
         index: 1,
-        authorName: mainAuthor ? mainAuthor.textContent.trim() : '',
+        authorName: mainAuthor ? mainAuthor.textContent.trim().split('\n')[0].trim() : '',
         authorHandle: mainHandle ? mainHandle.textContent.trim() : '',
         timestamp: mainTime ? mainTime.textContent.trim() : '',
         text: mainPost.textContent.trim(),
-        images
+        images,
+        isMainPost: true
       });
     }
 
-    // Comments
-    const comments = document.querySelectorAll('.comments-comment-item');
+    // Fallback: if no main post found, try grabbing all visible text from the post container
+    if (posts.length === 0) {
+      const postContainer = q([
+        '.scaffold-finite-scroll__content',
+        '.detail-page',
+        'main .feed-shared-update-v2',
+        'main [data-urn]',
+        'main article',
+      ]);
+
+      if (postContainer) {
+        // Get the largest text block as the post content
+        const allText = postContainer.querySelectorAll('span.break-words, span[dir="ltr"], div[dir="ltr"]');
+        let longestText = '';
+        allText.forEach(el => {
+          const text = el.textContent.trim();
+          if (text.length > longestText.length) {
+            longestText = text;
+          }
+        });
+
+        if (longestText) {
+          posts.push({
+            index: 1,
+            authorName: '',
+            authorHandle: '',
+            timestamp: '',
+            text: longestText,
+            images: [],
+            isMainPost: true
+          });
+        }
+      }
+    }
+
+    // Comments - try multiple selector patterns
+    const commentSelectors = [
+      '.comments-comment-item',
+      '.comments-comment-entity',
+      'article.comments-comment-item',
+      '[data-id][class*="comment"]',
+    ];
+
+    let comments = [];
+    for (const sel of commentSelectors) {
+      comments = document.querySelectorAll(sel);
+      if (comments.length > 0) break;
+    }
+
     comments.forEach((comment, index) => {
       try {
-        const authorEl = comment.querySelector('.comments-post-meta__name-text');
-        const textEl = comment.querySelector('.comments-comment-item__main-content');
-        const timeEl = comment.querySelector('.comments-comment-item__timestamp');
+        const authorEl = q([
+          '.comments-post-meta__name-text',
+          '.comments-comment-item__post-meta .hoverable-link-text',
+          'a[data-tracking-control-name*="comment"] span[aria-hidden="true"]',
+          '.comment-entity-header__name',
+        ], comment);
+
+        const textEl = q([
+          '.comments-comment-item__main-content',
+          '.comments-comment-texteditor',
+          '.update-components-text',
+          'span.break-words',
+          'span[dir="ltr"]',
+        ], comment);
+
+        const timeEl = q([
+          '.comments-comment-item__timestamp',
+          'time',
+          '.comment-entity-header__timestamp',
+        ], comment);
 
         if (textEl) {
           posts.push({
             index: index + 2,
-            authorName: authorEl ? authorEl.textContent.trim() : '',
+            authorName: authorEl ? authorEl.textContent.trim().split('\n')[0].trim() : '',
             authorHandle: '',
             timestamp: timeEl ? timeEl.textContent.trim() : '',
             text: textEl.textContent.trim(),
@@ -420,6 +571,9 @@
     button.addEventListener('click', async () => {
       const platform = detectPlatform();
       let posts = [];
+
+      // Expand all truncated content first
+      await expandAllContent(platform);
 
       switch (platform) {
         case 'twitter':
