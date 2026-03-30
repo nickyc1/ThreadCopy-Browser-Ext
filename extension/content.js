@@ -48,27 +48,26 @@
     let buttons = [];
 
     if (platform === 'twitter') {
-      // Click all "Show more" links in tweets
-      buttons = document.querySelectorAll('[data-testid="tweet-text-show-more-link"], [role="link"][href*="/status/"]');
-      // Also try generic show-more buttons within tweet text
-      document.querySelectorAll('article[data-testid="tweet"] [role="button"]').forEach(btn => {
-        if (btn.textContent.trim().toLowerCase() === 'show more') {
+      // Only click the "Show more" links inside tweet text areas
+      buttons = document.querySelectorAll('[data-testid="tweet-text-show-more-link"]');
+      // Also find "Show more" text inside tweet text containers only
+      document.querySelectorAll('[data-testid="tweetText"] + div [role="button"], [data-testid="tweetText"] [role="link"]').forEach(btn => {
+        const text = btn.textContent.trim().toLowerCase();
+        if (text === 'show more') {
           buttons = [...buttons, btn];
         }
       });
     } else if (platform === 'linkedin') {
-      // Click all "...see more" / "...more" buttons
+      // Only click "see more" toggles within post/comment text areas
       buttons = document.querySelectorAll(
         'button.feed-shared-inline-show-more-text, ' +
-        'button[aria-label*="see more"], ' +
-        'button[aria-label*="more"], ' +
         '.see-more-less-toggle, ' +
         '.feed-shared-text-view__see-more-less-toggle'
       );
-      // Also find by text content
-      document.querySelectorAll('button, span[role="button"]').forEach(btn => {
+      // Find by text content but only inside text containers, not reaction/engagement areas
+      document.querySelectorAll('.feed-shared-update-v2__description button, .feed-shared-text-view button, .comments-comment-item button').forEach(btn => {
         const text = btn.textContent.trim().toLowerCase();
-        if (text === '…see more' || text === '…more' || text === 'see more' || text === 'show more') {
+        if (text === '…see more' || text === '…more' || text === 'see more') {
           buttons = [...buttons, btn];
         }
       });
