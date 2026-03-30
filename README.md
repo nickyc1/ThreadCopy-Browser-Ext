@@ -1,4 +1,4 @@
-# Thread Copier
+# ThreadCopy
 
 A Chrome browser extension that lets you copy entire threads from **X (Twitter)**, **LinkedIn**, and **Reddit** with a single click. Perfect for saving discussions, feeding content to LLMs, or archiving conversations.
 
