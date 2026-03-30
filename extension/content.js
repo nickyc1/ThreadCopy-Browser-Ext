@@ -609,6 +609,74 @@
       }
     });
 
+    // --- Draggable behavior ---
+    let isDragging = false;
+    let dragStartY = 0;
+    let btnStartY = 0;
+    let hasMoved = false;
+
+    // Restore saved position
+    const savedY = localStorage.getItem('threadcopy-btn-y');
+    if (savedY !== null) {
+      button.style.top = savedY + 'px';
+      button.style.transform = 'none';
+    }
+
+    button.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      hasMoved = false;
+      dragStartY = e.clientY;
+      const rect = button.getBoundingClientRect();
+      btnStartY = rect.top;
+      button.style.transition = 'background 0.15s';
+      e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      const deltaY = e.clientY - dragStartY;
+      if (Math.abs(deltaY) > 4) hasMoved = true;
+      if (!hasMoved) return;
+
+      let newY = btnStartY + deltaY;
+      // Clamp within viewport
+      newY = Math.max(8, Math.min(window.innerHeight - 52, newY));
+      button.style.top = newY + 'px';
+      button.style.transform = 'none';
+    });
+
+    document.addEventListener('mouseup', () => {
+      if (!isDragging) return;
+      isDragging = false;
+      button.style.transition = 'all 0.2s ease';
+
+      if (hasMoved) {
+        // Save position
+        const rect = button.getBoundingClientRect();
+        localStorage.setItem('threadcopy-btn-y', Math.round(rect.top));
+      }
+    });
+
+    // Override click to ignore if it was a drag
+    const origClick = button.onclick;
+    button.addEventListener('click', (e) => {
+      if (hasMoved) {
+        e.stopImmediatePropagation();
+        e.preventDefault();
+      }
+    }, true);
+
+    // Update toast position to follow button
+    const updateToastPos = () => {
+      const toast = document.getElementById('threadcopy-toast');
+      if (toast) {
+        const rect = button.getBoundingClientRect();
+        toast.style.top = (rect.top - 44) + 'px';
+      }
+    };
+    const observer2 = new MutationObserver(updateToastPos);
+    observer2.observe(button, { attributes: true, attributeFilter: ['style'] });
+
     document.body.appendChild(button);
   }
 
