@@ -530,6 +530,78 @@
       margin-top: 12px;
     }
 
+    /* ---- FAQ ---- */
+    .faq {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 80px 24px;
+    }
+
+    .faq h2 {
+      text-align: center;
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      margin-bottom: 32px;
+    }
+
+    .faq-item {
+      border-bottom: 1px solid var(--border);
+    }
+
+    .faq-item:first-of-type {
+      border-top: 1px solid var(--border);
+    }
+
+    .faq-q {
+      width: 100%;
+      background: none;
+      border: none;
+      padding: 18px 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      font-family: 'Inter', sans-serif;
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+      text-align: left;
+      line-height: 1.4;
+    }
+
+    .faq-q:hover { color: var(--pink); }
+
+    .faq-q .chevron {
+      flex-shrink: 0;
+      width: 20px;
+      height: 20px;
+      margin-left: 16px;
+      transition: transform 0.2s;
+      color: var(--text-muted);
+    }
+
+    .faq-item.open .faq-q .chevron {
+      transform: rotate(180deg);
+    }
+
+    .faq-a {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease;
+    }
+
+    .faq-item.open .faq-a {
+      max-height: 300px;
+    }
+
+    .faq-a p {
+      padding: 0 0 18px;
+      font-size: 14px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
     /* ---- Footer ---- */
     footer {
       text-align: center;
@@ -740,6 +812,71 @@
       Install ThreadCopy &mdash; Free
     </a>
     <p class="cta-note">Works on Chrome, Brave, Edge, and Arc</p>
+  </section>
+
+  <!-- FAQ -->
+  <section class="faq">
+    <h2>FAQ</h2>
+
+    <div class="faq-item">
+      <button class="faq-q" onclick="this.parentElement.classList.toggle('open')">
+        What exactly gets copied on each platform?
+        <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+      </button>
+      <div class="faq-a">
+        <p>On <strong>X/Twitter</strong>, ThreadCopy copies the author's thread — the connected posts they wrote (1/, 2/, 3/...) — not the replies from other people. On <strong>Reddit</strong> and <strong>LinkedIn</strong>, it copies the original post plus all the comments, since the discussion is the thread on those platforms.</p>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-q" onclick="this.parentElement.classList.toggle('open')">
+        Why doesn't the button show up?
+        <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+      </button>
+      <div class="faq-a">
+        <p>ThreadCopy only shows the button when you're on an actual thread or post page — not the feed. Click into a specific post so the URL shows the thread ID (e.g. x.com/user/status/123 or reddit.com/r/sub/comments/abc). If you're scrolling a feed, you won't see it.</p>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-q" onclick="this.parentElement.classList.toggle('open')">
+        Does ThreadCopy collect any data?
+        <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+      </button>
+      <div class="faq-a">
+        <p>No. Zero data leaves your browser. There are no analytics, no tracking, no server calls, and no account. Everything runs locally on your machine. The source code is public on GitHub if you want to verify.</p>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-q" onclick="this.parentElement.classList.toggle('open')">
+        Can I move the button if it's in the way?
+        <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+      </button>
+      <div class="faq-a">
+        <p>Yes. Click and drag the button up or down to reposition it anywhere on the right side of the page. Your position is saved automatically and remembered the next time you visit.</p>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-q" onclick="this.parentElement.classList.toggle('open')">
+        Does it work on Brave, Edge, or Arc?
+        <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+      </button>
+      <div class="faq-a">
+        <p>Yes. Brave, Edge, and Arc are all built on Chromium, the same engine as Chrome. They support Chrome extensions natively, so you can install ThreadCopy from the Chrome Web Store on any of them.</p>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-q" onclick="this.parentElement.classList.toggle('open')">
+        What about truncated posts that say "Show more"?
+        <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+      </button>
+      <div class="faq-a">
+        <p>ThreadCopy automatically expands truncated content before copying. It clicks all the "Show more" buttons on the page so you get the full text of every post, not cut-off snippets.</p>
+      </div>
+    </div>
   </section>
 
   <footer>
