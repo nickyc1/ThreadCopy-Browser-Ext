@@ -49,7 +49,8 @@
 #thread-copier-btn .icon svg {
   width: 18px;
   height: 18px;
-  fill: currentColor;
+  fill: none;
+  stroke: currentColor;
 }
 
 /* Toast notification */
