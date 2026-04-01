@@ -43,6 +43,34 @@
     }
   }
 
+  // Auto-scroll to load all lazy-loaded content (Twitter threads)
+  async function scrollToLoadAll(platform) {
+    if (platform !== 'twitter') return;
+
+    const getCount = () => document.querySelectorAll('article[data-testid="tweet"]').length;
+    let prevCount = getCount();
+    let stableRounds = 0;
+    const maxScrolls = 30;
+
+    for (let i = 0; i < maxScrolls; i++) {
+      window.scrollTo(0, document.body.scrollHeight);
+      await new Promise(r => setTimeout(r, 800));
+
+      const newCount = getCount();
+      if (newCount === prevCount) {
+        stableRounds++;
+        if (stableRounds >= 2) break; // No new tweets after 2 scrolls, we're done
+      } else {
+        stableRounds = 0;
+      }
+      prevCount = newCount;
+    }
+
+    // Scroll back to top so user isn't left at the bottom
+    window.scrollTo(0, 0);
+    await new Promise(r => setTimeout(r, 300));
+  }
+
   // Auto-expand truncated content before extraction
   async function expandAllContent(platform) {
     let buttons = [];
@@ -571,7 +599,8 @@
       const platform = detectPlatform();
       let posts = [];
 
-      // Expand all truncated content first
+      // Scroll to load all lazy-loaded tweets, then expand truncated content
+      await scrollToLoadAll(platform);
       await expandAllContent(platform);
 
       switch (platform) {
