@@ -176,91 +176,87 @@
   }
 
   // Extract thread content from Twitter/X
-  // Uses thread-following: X only shows ~6 thread replies per page,
-  // so we fetch subsequent pages to get the full thread
+  // Strategy: if the thread appears truncated, navigate to the last visible
+  // tweet's page where X renders the full thread context above it, then
+  // extract all tweets and navigate back.
   async function extractTwitterThread() {
-    const allTweets = [];
     const seenTexts = new Set();
+    const originalUrl = location.href;
 
-    // Get the OP's author handle to filter self-thread only
+    // Get OP handle to filter self-thread
     const firstTweet = document.querySelector('article[data-testid="tweet"]');
     const opHandle = firstTweet?.querySelector('[data-testid="User-Name"] a[href^="/"]')?.textContent?.trim()?.toLowerCase() || '';
 
-    // Extract tweets from current page
-    function extractFromCurrentPage() {
-      const tweetElements = document.querySelectorAll('article[data-testid="tweet"]');
-      let lastStatusHref = '';
+    const allTweets = [];
 
-      tweetElements.forEach(tweet => {
+    // Collect unique tweets from current DOM into allTweets
+    function collectTweets() {
+      document.querySelectorAll('article[data-testid="tweet"]').forEach(tweet => {
         const data = extractTweetData(tweet);
         if (!data) return;
 
-        // Only include tweets from the thread author (self-thread)
-        const handle = data.authorHandle.toLowerCase();
-        if (opHandle && handle !== opHandle) return;
+        // Only include thread author's tweets
+        if (opHandle && data.authorHandle.toLowerCase() !== opHandle) return;
 
-        // Deduplicate by text content
         const key = data.text.substring(0, 80);
         if (seenTexts.has(key)) return;
         seenTexts.add(key);
 
-        data.index = allTweets.length + 1;
         allTweets.push(data);
-        if (data.statusHref) lastStatusHref = data.statusHref;
       });
-
-      return lastStatusHref;
     }
 
-    // Extract from the current page first
-    let lastHref = extractFromCurrentPage();
+    // First pass: extract from current page
+    collectTweets();
 
-    // Follow the thread: fetch subsequent tweet pages to get remaining posts
-    // X shows ~6 replies per page, so we may need 2-3 page loads for a 15-tweet thread
-    for (let page = 0; page < 5; page++) {
-      if (!lastHref) break;
+    // Check if this looks like a truncated thread (thread author has more posts)
+    // Get the last tweet's status link
+    const lastTweetEl = Array.from(document.querySelectorAll('article[data-testid="tweet"]')).pop();
+    const lastStatusLink = lastTweetEl?.querySelector('a[href*="/status/"] time')?.parentElement;
+    const lastHref = lastStatusLink?.getAttribute('href') || '';
 
+    // Only attempt thread-following if we found multiple tweets from same author
+    if (allTweets.length >= 2 && lastStatusLink) {
       try {
-        // Fetch the next page HTML
-        const url = 'https://x.com' + lastHref;
-        const response = await fetch(url, { credentials: 'include' });
-        const html = await response.text();
+        // Click the last tweet's timestamp to SPA-navigate to its page
+        lastStatusLink.click();
 
-        // Parse the HTML to extract tweet data
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(html, 'text/html');
-        const pageTweets = doc.querySelectorAll('article[data-testid="tweet"]');
+        // Wait for X to load the new page with full thread context
+        await new Promise(r => setTimeout(r, 3000));
 
-        if (pageTweets.length === 0) break;
+        // Wait for more tweets to appear (X renders the full thread above the clicked tweet)
+        for (let i = 0; i < 10; i++) {
+          const count = document.querySelectorAll('article[data-testid="tweet"]').length;
+          if (count >= allTweets.length + 2) break;
+          await new Promise(r => setTimeout(r, 1000));
+        }
 
-        let foundNew = false;
-        let newLastHref = '';
+        // Scroll through to load all tweets in the virtual list
+        const de = document.documentElement;
+        for (let i = 0; i < 15; i++) {
+          de.scrollTop += 800;
+          await new Promise(r => setTimeout(r, 400));
 
-        pageTweets.forEach(tweet => {
-          const data = extractTweetData(tweet);
-          if (!data) return;
+          // Collect as we scroll (virtual list recycles nodes)
+          collectTweets();
+        }
+        de.scrollTop = 0;
+        await new Promise(r => setTimeout(r, 300));
 
-          const handle = data.authorHandle.toLowerCase();
-          if (opHandle && handle !== opHandle) return;
+        // Final collection
+        collectTweets();
 
-          const key = data.text.substring(0, 80);
-          if (seenTexts.has(key)) return;
-          seenTexts.add(key);
-
-          data.index = allTweets.length + 1;
-          allTweets.push(data);
-          foundNew = true;
-          if (data.statusHref) newLastHref = data.statusHref;
-        });
-
-        if (!foundNew) break;
-        lastHref = newLastHref;
+        // Navigate back to original URL
+        window.history.back();
+        await new Promise(r => setTimeout(r, 1500));
       } catch (e) {
         console.error('Error following thread:', e);
-        break;
+        try { window.history.back(); } catch(e2) {}
       }
     }
 
+    // Re-index
+    allTweets.forEach((t, i) => { t.index = i + 1; });
     return allTweets;
   }
 
