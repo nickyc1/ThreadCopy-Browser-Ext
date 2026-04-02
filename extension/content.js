@@ -811,34 +811,55 @@
 
   // Show toast notification
   function showToast(message, isError = false) {
-    let toast = document.getElementById('threadcopy-toast');
+    // Remove any existing toast
+    const old = document.getElementById('threadcopy-toast');
+    if (old) old.remove();
 
-    if (!toast) {
-      toast = document.createElement('div');
-      toast.id = 'threadcopy-toast';
-      document.body.appendChild(toast);
-    }
-
+    // Create fresh toast
+    const toast = document.createElement('div');
+    toast.id = 'threadcopy-toast';
     toast.textContent = message;
-    toast.className = isError ? 'error' : '';
-    toast.classList.remove('show');
 
-    // Position toast just above the button
+    // Position above button
     const btn = document.getElementById('threadcopy-btn');
-    if (btn) {
-      const rect = btn.getBoundingClientRect();
-      toast.style.top = (rect.top - 44) + 'px';
-      toast.style.right = '24px';
-    }
+    const topPos = btn ? (btn.getBoundingClientRect().top - 44) + 'px' : 'calc(50% - 50px)';
 
-    // Force reflow then show
-    toast.offsetHeight;
-    toast.classList.add('show');
+    // Apply all styles inline to avoid CSS class issues after SPA nav
+    toast.style.cssText = `
+      position: fixed;
+      top: ${topPos};
+      right: 24px;
+      z-index: 2147483647;
+      padding: 12px 20px;
+      background: #1a1a2e;
+      color: ${isError ? '#f87171' : '#10b981'};
+      border: 1px solid ${isError ? 'rgba(248,113,113,0.3)' : 'rgba(16,185,129,0.3)'};
+      border-radius: 12px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+      opacity: 0;
+      transform: translateY(6px);
+      transition: opacity 0.3s ease, transform 0.3s ease;
+      pointer-events: none;
+    `;
 
-    // Hide after 4 seconds
-    clearTimeout(toast._hideTimer);
-    toast._hideTimer = setTimeout(() => {
-      toast.classList.remove('show');
+    document.body.appendChild(toast);
+
+    // Animate in
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        toast.style.opacity = '1';
+        toast.style.transform = 'translateY(0)';
+      });
+    });
+
+    // Animate out after 4 seconds
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      toast.style.transform = 'translateY(6px)';
+      setTimeout(() => toast.remove(), 300);
     }, 4000);
   }
 
