@@ -227,6 +227,19 @@
     const contentParts = [];
     const seen = new Set();
 
+    // Helper: check if a link is an external/content link (not a profile or engagement link)
+    function isContentLink(a) {
+      const href = a.href || '';
+      const text = a.textContent.trim();
+      if (!href || !text || text.length > 100 || text.length < 2) return false;
+      if (href.includes('x.com/') || href.includes('twitter.com/')) {
+        // Allow x.com links that aren't user profiles or statuses
+        if (/^https?:\/\/(www\.)?(x|twitter)\.com\/[^/]+\/?$/.test(href)) return false;
+        if (href.includes('/status/')) return false;
+      }
+      return true;
+    }
+
     function walkArticleNode(node) {
       if (!node || !node.tagName) return;
       const tag = node.tagName;
@@ -251,6 +264,18 @@
         if (t && !seen.has(t)) {
           seen.add(t);
           contentParts.push('\n```\n' + t + '\n```\n');
+        }
+        return;
+      }
+
+      // Links - capture text and URL
+      if (tag === 'A' && isContentLink(node)) {
+        const text = node.textContent.trim();
+        const href = node.href;
+        const linkKey = text + '|' + href;
+        if (!seen.has(linkKey)) {
+          seen.add(linkKey);
+          contentParts.push(text + ' (' + href + ')');
         }
         return;
       }
