@@ -248,6 +248,11 @@
           result += child.textContent;
         } else if (child.nodeType === 1) {
           const tag = child.tagName;
+          // Skip metadata elements inside paragraphs
+          const cTestId = child.getAttribute && child.getAttribute('data-testid');
+          if (cTestId === 'User-Name' || cTestId === 'app-text-transition-container') return;
+          if (child.getAttribute && child.getAttribute('role') === 'group') return;
+
           if (tag === 'A' && isContentLink(child)) {
             result += child.textContent.trim() + ' (' + child.href + ')';
           } else if (tag === 'BR') {
@@ -267,14 +272,18 @@
       const tag = node.tagName;
 
       // Skip metadata areas
-      if (node.getAttribute('data-testid') === 'User-Name' ||
-          node.getAttribute('data-testid') === 'app-text-transition-container' ||
+      const testId = node.getAttribute('data-testid') || '';
+      if (testId === 'User-Name' || testId === 'app-text-transition-container' ||
+          testId === 'like' || testId === 'retweet' || testId === 'reply' ||
+          testId === 'bookmark' || testId === 'share' ||
           node.getAttribute('role') === 'group') return;
 
       // Skip engagement/timestamp footer area
       const text = node.textContent.trim();
-      if (/^\d+:\d+\s*(AM|PM)/.test(text) && text.includes('Views')) return;
-      if (/^\d+$/.test(text) && text.length < 10) return;
+      if (/^\d+:\d+\s*(AM|PM)/.test(text)) return;
+      if (/Views$/.test(text)) return;
+      if (/^\d[\d,.]*K?\s*(Relevant|View quotes|Reposts|Likes|Bookmarks|Replies)/.test(text)) return;
+      if (/^(Relevant|View quotes)/.test(text)) return;
 
       // Headings
       if (tag === 'H1' || tag === 'H2' || tag === 'H3') {
