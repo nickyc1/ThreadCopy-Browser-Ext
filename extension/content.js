@@ -812,7 +812,7 @@
   // Show toast notification
   function showToast(message, isError = false) {
     let toast = document.getElementById('threadcopy-toast');
-    
+
     if (!toast) {
       toast = document.createElement('div');
       toast.id = 'threadcopy-toast';
@@ -821,10 +821,18 @@
 
     toast.textContent = message;
     toast.className = isError ? 'error' : '';
-    
+
+    // Position toast just above the button
+    const btn = document.getElementById('threadcopy-btn');
+    if (btn) {
+      const rect = btn.getBoundingClientRect();
+      toast.style.top = (rect.top - 44) + 'px';
+      toast.style.right = '24px';
+    }
+
     // Trigger animation
     setTimeout(() => toast.classList.add('show'), 10);
-    
+
     // Hide after 3 seconds
     setTimeout(() => {
       toast.classList.remove('show');
