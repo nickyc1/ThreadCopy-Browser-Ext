@@ -821,6 +821,7 @@
 
     toast.textContent = message;
     toast.className = isError ? 'error' : '';
+    toast.classList.remove('show');
 
     // Position toast just above the button
     const btn = document.getElementById('threadcopy-btn');
@@ -830,13 +831,15 @@
       toast.style.right = '24px';
     }
 
-    // Trigger animation
-    setTimeout(() => toast.classList.add('show'), 10);
+    // Force reflow then show
+    toast.offsetHeight;
+    toast.classList.add('show');
 
-    // Hide after 3 seconds
-    setTimeout(() => {
+    // Hide after 4 seconds
+    clearTimeout(toast._hideTimer);
+    toast._hideTimer = setTimeout(() => {
       toast.classList.remove('show');
-    }, 3000);
+    }, 4000);
   }
 
   // Create the floating copy button
