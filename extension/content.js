@@ -63,9 +63,11 @@
     return false;
   }
 
-  // Auto-scroll to load all lazy-loaded content (Twitter threads only)
+  // Auto-scroll to load all lazy-loaded content (LinkedIn and Reddit only)
   async function scrollToLoadAll(platform) {
-    if (platform !== 'twitter') return;
+    // Never auto-scroll on Twitter - we only copy the author's thread, not replies
+    if (platform === 'twitter') return;
+    if (platform !== 'linkedin' && platform !== 'reddit') return;
 
     // Don't auto-scroll for articles or single tweets
     if (isTwitterArticle()) return;
