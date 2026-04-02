@@ -43,12 +43,26 @@
     }
   }
 
-  // Auto-scroll to load all lazy-loaded content (Twitter threads)
+  // Check if current X page is an article (not a regular tweet/thread)
+  function isTwitterArticle() {
+    return !!document.querySelector('[data-testid="TextColumn"], article [role="article"], [data-testid="article"]') ||
+           document.title.toLowerCase().includes('article');
+  }
+
+  // Auto-scroll to load all lazy-loaded content (Twitter threads only)
   async function scrollToLoadAll(platform) {
     if (platform !== 'twitter') return;
 
+    // Don't auto-scroll for articles or single tweets
+    if (isTwitterArticle()) return;
+
     const getCount = () => document.querySelectorAll('article[data-testid="tweet"]').length;
-    let prevCount = getCount();
+    const initialCount = getCount();
+
+    // Only scroll if this looks like a multi-tweet thread (more than 1 tweet visible)
+    if (initialCount <= 1) return;
+
+    let prevCount = initialCount;
     let stableRounds = 0;
     const maxScrolls = 30;
 
@@ -59,14 +73,14 @@
       const newCount = getCount();
       if (newCount === prevCount) {
         stableRounds++;
-        if (stableRounds >= 2) break; // No new tweets after 2 scrolls, we're done
+        if (stableRounds >= 2) break;
       } else {
         stableRounds = 0;
       }
       prevCount = newCount;
     }
 
-    // Scroll back to top so user isn't left at the bottom
+    // Scroll back to top
     window.scrollTo(0, 0);
     await new Promise(r => setTimeout(r, 300));
   }
@@ -171,6 +185,89 @@
     });
 
     return tweets;
+  }
+
+  // Extract article content from Twitter/X
+  function extractTwitterArticle() {
+    const posts = [];
+
+    // Get author info from the tweet that contains the article
+    const tweetEl = document.querySelector('article[data-testid="tweet"]');
+    let authorName = '';
+    let authorHandle = '';
+    let formattedTime = '';
+
+    if (tweetEl) {
+      const userNameEl = tweetEl.querySelector('[data-testid="User-Name"]');
+      if (userNameEl) {
+        const nameSpan = userNameEl.querySelector('span');
+        const handleLink = userNameEl.querySelector('a[href^="/"]');
+        authorName = nameSpan ? nameSpan.textContent.trim() : '';
+        authorHandle = handleLink ? handleLink.textContent.trim() : '';
+      }
+      const timeEl = tweetEl.querySelector('time');
+      const timestamp = timeEl ? timeEl.getAttribute('datetime') : '';
+      formattedTime = timestamp ? new Date(timestamp).toLocaleString() : '';
+    }
+
+    // Extract article body text - try multiple selectors
+    let articleText = '';
+    const articleSelectors = [
+      '[data-testid="TextColumn"]',
+      'article [role="article"]',
+      '[data-testid="article"]',
+      'article .css-175oi2r [lang]',
+    ];
+
+    for (const sel of articleSelectors) {
+      const el = document.querySelector(sel);
+      if (el && el.textContent.trim().length > 100) {
+        articleText = el.textContent.trim();
+        break;
+      }
+    }
+
+    // Fallback: grab all paragraph-like elements inside the main tweet area
+    if (!articleText) {
+      const paragraphs = [];
+      // Look for the article content area (usually has long text blocks)
+      document.querySelectorAll('article [data-testid="tweetText"], article [lang] span, article p').forEach(el => {
+        const text = el.textContent.trim();
+        if (text.length > 50 && !paragraphs.includes(text)) {
+          paragraphs.push(text);
+        }
+      });
+      articleText = paragraphs.join('\n\n');
+    }
+
+    // Get article title if present
+    const titleEl = document.querySelector('article h1, article h2, [data-testid="TextColumn"] h1');
+    const title = titleEl ? titleEl.textContent.trim() : '';
+
+    // Get images
+    const images = [];
+    document.querySelectorAll('article img').forEach(img => {
+      if (img.src && !img.src.includes('emoji') && !img.src.includes('profile') &&
+          !img.src.includes('avatar') && img.naturalWidth > 100) {
+        images.push(img.src);
+      }
+    });
+
+    const fullText = title ? title + '\n\n' + articleText : articleText;
+
+    if (fullText) {
+      posts.push({
+        index: 1,
+        authorName,
+        authorHandle,
+        timestamp: formattedTime,
+        text: fullText,
+        images,
+        isMainPost: true
+      });
+    }
+
+    return posts;
   }
 
   // Extract thread content from LinkedIn
@@ -605,7 +702,7 @@
 
       switch (platform) {
         case 'twitter':
-          posts = extractTwitterThread();
+          posts = isTwitterArticle() ? extractTwitterArticle() : extractTwitterThread();
           break;
         case 'linkedin':
           posts = extractLinkedInThread();
