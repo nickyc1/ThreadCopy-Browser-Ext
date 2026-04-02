@@ -924,9 +924,42 @@
   }
 
   // Initialize
+  // Toggle: hide/show button based on enabled state
+  function hideButton() {
+    const btn = document.getElementById('threadcopy-btn');
+    if (btn) btn.style.display = 'none';
+    const toast = document.getElementById('threadcopy-toast');
+    if (toast) toast.style.display = 'none';
+  }
+
+  function showButton() {
+    const btn = document.getElementById('threadcopy-btn');
+    if (btn) {
+      btn.style.display = 'flex';
+    } else if (isThreadPage()) {
+      createCopyButton();
+    }
+  }
+
+  // Listen for toggle messages from popup
+  chrome.runtime.onMessage.addListener((message) => {
+    if (message.action === 'toggleThreadCopy') {
+      if (message.enabled) {
+        showButton();
+      } else {
+        hideButton();
+      }
+    }
+  });
+
   function init() {
-    // Create button on initial load
-    setTimeout(createCopyButton, 1500);
+    // Check if extension is enabled before creating button
+    chrome.storage.sync.get('threadcopyEnabled', (data) => {
+      const enabled = data.threadcopyEnabled !== false; // default true
+      if (enabled) {
+        setTimeout(createCopyButton, 1500);
+      }
+    });
 
     // Watch for SPA navigation
     setInterval(checkUrlChange, 500);
@@ -934,14 +967,19 @@
     // Also observe DOM changes for dynamic content
     const observer = new MutationObserver((mutations) => {
       // Only re-check if major DOM changes occurred
-      const shouldRecheck = mutations.some(m => 
-        m.addedNodes.length > 5 || 
+      const shouldRecheck = mutations.some(m =>
+        m.addedNodes.length > 5 ||
         (m.target.tagName === 'MAIN') ||
         (m.target.id && m.target.id.includes('content'))
       );
-      
+
       if (shouldRecheck && isThreadPage() && !document.getElementById('threadcopy-btn')) {
-        createCopyButton();
+        // Only show if enabled
+        chrome.storage.sync.get('threadcopyEnabled', (data) => {
+          if (data.threadcopyEnabled !== false) {
+            createCopyButton();
+          }
+        });
       }
     });
 
