@@ -63,38 +63,20 @@
     return false;
   }
 
-  // Auto-scroll to load all lazy-loaded content
+  // Auto-scroll to load lazy-loaded content (LinkedIn and Reddit only)
   async function scrollToLoadAll(platform) {
-    if (platform === 'twitter') {
-      // Don't scroll for articles
-      if (isTwitterArticle()) return;
+    // Never scroll on Twitter — we use thread-following instead
+    if (platform === 'twitter') return;
+    if (platform !== 'linkedin' && platform !== 'reddit') return;
 
-      // Only scroll for self-threads: check if the first 2 tweets share the same author
-      const tweets = document.querySelectorAll('article[data-testid="tweet"]');
-      if (tweets.length < 2) return;
-
-      const getHandle = (tweet) => {
-        const el = tweet.querySelector('[data-testid="User-Name"] a[href^="/"]');
-        return el ? el.textContent.trim().toLowerCase() : '';
-      };
-
-      const firstAuthor = getHandle(tweets[0]);
-      const secondAuthor = getHandle(tweets[1]);
-      if (!firstAuthor || firstAuthor !== secondAuthor) return; // Not a self-thread, skip scroll
-    } else if (platform !== 'linkedin' && platform !== 'reddit') {
-      return;
-    }
-
-    const getCount = () => document.querySelectorAll('article[data-testid="tweet"], .comments-comment-item, [data-testid="comment"], shreddit-comment, .Comment').length;
+    const getCount = () => document.querySelectorAll('.comments-comment-item, [data-testid="comment"], shreddit-comment, .Comment, .comment').length;
     const initialCount = getCount();
-
     if (initialCount <= 1) return;
 
     let prevCount = initialCount;
     let stableRounds = 0;
-    const maxScrolls = 30;
 
-    for (let i = 0; i < maxScrolls; i++) {
+    for (let i = 0; i < 30; i++) {
       window.scrollTo(0, document.body.scrollHeight);
       await new Promise(r => setTimeout(r, 800));
 
@@ -108,7 +90,6 @@
       prevCount = newCount;
     }
 
-    // Scroll back to top
     window.scrollTo(0, 0);
     await new Promise(r => setTimeout(r, 300));
   }
@@ -152,67 +133,135 @@
     }
   }
 
-  // Extract thread content from Twitter/X
-  function extractTwitterThread() {
-    const tweets = [];
-    const tweetElements = document.querySelectorAll('article[data-testid="tweet"]');
+  // Extract a single tweet's data from a DOM element
+  function extractTweetData(tweet) {
+    try {
+      const userNameEl = tweet.querySelector('[data-testid="User-Name"]');
+      let authorName = '';
+      let authorHandle = '';
 
-    tweetElements.forEach((tweet, index) => {
-      try {
-        // Get author info
-        const userNameEl = tweet.querySelector('[data-testid="User-Name"]');
-        let authorName = '';
-        let authorHandle = '';
-        
-        if (userNameEl) {
-          const nameSpan = userNameEl.querySelector('span');
-          const handleLink = userNameEl.querySelector('a[href^="/"]');
-          authorName = nameSpan ? nameSpan.textContent.trim() : '';
-          authorHandle = handleLink ? handleLink.textContent.trim() : '';
-        }
-
-        // Get timestamp
-        const timeEl = tweet.querySelector('time');
-        const timestamp = timeEl ? timeEl.getAttribute('datetime') : '';
-        const formattedTime = timestamp ? new Date(timestamp).toLocaleString() : '';
-
-        // Get tweet text
-        const textEl = tweet.querySelector('[data-testid="tweetText"]');
-        const text = textEl ? textEl.textContent.trim() : '';
-
-        // Get images
-        const images = [];
-        const imgElements = tweet.querySelectorAll('[data-testid="tweetPhoto"] img');
-        imgElements.forEach(img => {
-          if (img.src && !img.src.includes('emoji')) {
-            images.push(img.src);
-          }
-        });
-
-        // Get video thumbnails
-        const videoElements = tweet.querySelectorAll('[data-testid="videoPlayer"] video');
-        videoElements.forEach(video => {
-          if (video.poster) {
-            images.push('[Video] ' + video.poster);
-          }
-        });
-
-        if (text || images.length > 0) {
-          tweets.push({
-            index: index + 1,
-            authorName,
-            authorHandle,
-            timestamp: formattedTime,
-            text,
-            images
-          });
-        }
-      } catch (e) {
-        console.error('Error extracting tweet:', e);
+      if (userNameEl) {
+        const nameSpan = userNameEl.querySelector('span');
+        const handleLink = userNameEl.querySelector('a[href^="/"]');
+        authorName = nameSpan ? nameSpan.textContent.trim() : '';
+        authorHandle = handleLink ? handleLink.textContent.trim() : '';
       }
-    });
 
-    return tweets;
+      const timeEl = tweet.querySelector('time');
+      const timestamp = timeEl ? timeEl.getAttribute('datetime') : '';
+      const formattedTime = timestamp ? new Date(timestamp).toLocaleString() : '';
+
+      const textEl = tweet.querySelector('[data-testid="tweetText"]');
+      const text = textEl ? textEl.textContent.trim() : '';
+
+      const images = [];
+      tweet.querySelectorAll('[data-testid="tweetPhoto"] img').forEach(img => {
+        if (img.src && !img.src.includes('emoji')) images.push(img.src);
+      });
+      tweet.querySelectorAll('[data-testid="videoPlayer"] video').forEach(video => {
+        if (video.poster) images.push('[Video] ' + video.poster);
+      });
+
+      // Get this tweet's status URL for thread-following
+      const statusLink = tweet.querySelector('a[href*="/status/"] time')?.parentElement;
+      const statusHref = statusLink ? statusLink.getAttribute('href') : '';
+
+      if (text || images.length > 0) {
+        return { authorName, authorHandle, timestamp: formattedTime, text, images, statusHref };
+      }
+    } catch (e) {
+      console.error('Error extracting tweet:', e);
+    }
+    return null;
+  }
+
+  // Extract thread content from Twitter/X
+  // Uses thread-following: X only shows ~6 thread replies per page,
+  // so we fetch subsequent pages to get the full thread
+  async function extractTwitterThread() {
+    const allTweets = [];
+    const seenTexts = new Set();
+
+    // Get the OP's author handle to filter self-thread only
+    const firstTweet = document.querySelector('article[data-testid="tweet"]');
+    const opHandle = firstTweet?.querySelector('[data-testid="User-Name"] a[href^="/"]')?.textContent?.trim()?.toLowerCase() || '';
+
+    // Extract tweets from current page
+    function extractFromCurrentPage() {
+      const tweetElements = document.querySelectorAll('article[data-testid="tweet"]');
+      let lastStatusHref = '';
+
+      tweetElements.forEach(tweet => {
+        const data = extractTweetData(tweet);
+        if (!data) return;
+
+        // Only include tweets from the thread author (self-thread)
+        const handle = data.authorHandle.toLowerCase();
+        if (opHandle && handle !== opHandle) return;
+
+        // Deduplicate by text content
+        const key = data.text.substring(0, 80);
+        if (seenTexts.has(key)) return;
+        seenTexts.add(key);
+
+        data.index = allTweets.length + 1;
+        allTweets.push(data);
+        if (data.statusHref) lastStatusHref = data.statusHref;
+      });
+
+      return lastStatusHref;
+    }
+
+    // Extract from the current page first
+    let lastHref = extractFromCurrentPage();
+
+    // Follow the thread: fetch subsequent tweet pages to get remaining posts
+    // X shows ~6 replies per page, so we may need 2-3 page loads for a 15-tweet thread
+    for (let page = 0; page < 5; page++) {
+      if (!lastHref) break;
+
+      try {
+        // Fetch the next page HTML
+        const url = 'https://x.com' + lastHref;
+        const response = await fetch(url, { credentials: 'include' });
+        const html = await response.text();
+
+        // Parse the HTML to extract tweet data
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        const pageTweets = doc.querySelectorAll('article[data-testid="tweet"]');
+
+        if (pageTweets.length === 0) break;
+
+        let foundNew = false;
+        let newLastHref = '';
+
+        pageTweets.forEach(tweet => {
+          const data = extractTweetData(tweet);
+          if (!data) return;
+
+          const handle = data.authorHandle.toLowerCase();
+          if (opHandle && handle !== opHandle) return;
+
+          const key = data.text.substring(0, 80);
+          if (seenTexts.has(key)) return;
+          seenTexts.add(key);
+
+          data.index = allTweets.length + 1;
+          allTweets.push(data);
+          foundNew = true;
+          if (data.statusHref) newLastHref = data.statusHref;
+        });
+
+        if (!foundNew) break;
+        lastHref = newLastHref;
+      } catch (e) {
+        console.error('Error following thread:', e);
+        break;
+      }
+    }
+
+    return allTweets;
   }
 
   // Extract article content from Twitter/X
@@ -823,7 +872,7 @@
 
       switch (platform) {
         case 'twitter':
-          posts = isTwitterArticle() ? extractTwitterArticle() : extractTwitterThread();
+          posts = isTwitterArticle() ? extractTwitterArticle() : await extractTwitterThread();
           break;
         case 'linkedin':
           posts = extractLinkedInThread();
