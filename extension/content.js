@@ -231,12 +231,24 @@
           await new Promise(r => setTimeout(r, 800));
         }
 
-        // Quick scroll to collect all tweets from virtual list
+        // Scroll just enough to load the thread author's posts, stop at replies
         const de = document.documentElement;
+        const prevCount = allTweets.length;
         for (let i = 0; i < 12; i++) {
           de.scrollTop += 1200;
           await new Promise(r => setTimeout(r, 250));
+
+          // Check if we've hit a non-author tweet (replies section)
+          const lastVisible = Array.from(document.querySelectorAll('article[data-testid="tweet"]')).pop();
+          if (lastVisible) {
+            const lastHandle = lastVisible.querySelector('[data-testid="User-Name"] a[href^="/"]')?.textContent?.trim()?.toLowerCase() || '';
+            if (lastHandle && lastHandle !== opHandle) break; // Hit replies, stop
+          }
+
           collectTweets();
+
+          // Stop if no new tweets found in this scroll
+          if (i > 3 && allTweets.length === prevCount) break;
         }
 
         // Navigate back and restore position
@@ -882,14 +894,26 @@
       const success = await copyToClipboard(formattedText);
 
       if (success) {
-        button.classList.add('copied');
-        button.querySelector('.text').textContent = 'Copied!';
-        showToast(`Copied ${posts.length} post${posts.length > 1 ? 's' : ''} to clipboard`);
-        
+        // Re-find the button in case DOM changed during navigation
+        const btn = document.getElementById('threadcopy-btn') || button;
+        const textEl = btn.querySelector('.text');
+
+        btn.classList.add('copied');
+        if (textEl) textEl.textContent = 'Copied!';
+
+        // Small delay before showing toast to ensure DOM is stable
         setTimeout(() => {
-          button.classList.remove('copied');
-          button.querySelector('.text').textContent = 'ThreadCopy';
-        }, 2000);
+          showToast(`Copied ${posts.length} post${posts.length > 1 ? 's' : ''} to clipboard`);
+        }, 100);
+
+        setTimeout(() => {
+          const btn2 = document.getElementById('threadcopy-btn');
+          if (btn2) {
+            btn2.classList.remove('copied');
+            const textEl2 = btn2.querySelector('.text');
+            if (textEl2) textEl2.textContent = 'ThreadCopy';
+          }
+        }, 2500);
       } else {
         showToast('Failed to copy to clipboard', true);
       }
