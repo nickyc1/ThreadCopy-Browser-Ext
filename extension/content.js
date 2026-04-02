@@ -63,19 +63,31 @@
     return false;
   }
 
-  // Auto-scroll to load all lazy-loaded content (LinkedIn and Reddit only)
+  // Auto-scroll to load all lazy-loaded content
   async function scrollToLoadAll(platform) {
-    // Never auto-scroll on Twitter - we only copy the author's thread, not replies
-    if (platform === 'twitter') return;
-    if (platform !== 'linkedin' && platform !== 'reddit') return;
+    if (platform === 'twitter') {
+      // Don't scroll for articles
+      if (isTwitterArticle()) return;
 
-    // Don't auto-scroll for articles or single tweets
-    if (isTwitterArticle()) return;
+      // Only scroll for self-threads: check if the first 2 tweets share the same author
+      const tweets = document.querySelectorAll('article[data-testid="tweet"]');
+      if (tweets.length < 2) return;
 
-    const getCount = () => document.querySelectorAll('article[data-testid="tweet"]').length;
+      const getHandle = (tweet) => {
+        const el = tweet.querySelector('[data-testid="User-Name"] a[href^="/"]');
+        return el ? el.textContent.trim().toLowerCase() : '';
+      };
+
+      const firstAuthor = getHandle(tweets[0]);
+      const secondAuthor = getHandle(tweets[1]);
+      if (!firstAuthor || firstAuthor !== secondAuthor) return; // Not a self-thread, skip scroll
+    } else if (platform !== 'linkedin' && platform !== 'reddit') {
+      return;
+    }
+
+    const getCount = () => document.querySelectorAll('article[data-testid="tweet"], .comments-comment-item, [data-testid="comment"], shreddit-comment, .Comment').length;
     const initialCount = getCount();
 
-    // Only scroll if this looks like a multi-tweet thread (more than 1 tweet visible)
     if (initialCount <= 1) return;
 
     let prevCount = initialCount;
