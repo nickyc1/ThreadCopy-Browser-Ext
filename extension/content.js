@@ -227,19 +227,41 @@
     const contentParts = [];
     const seen = new Set();
 
-    // Helper: check if a link is an external/content link (not a profile or engagement link)
+    // Helper: check if a link is an external/content link
     function isContentLink(a) {
       const href = a.href || '';
       const text = a.textContent.trim();
       if (!href || !text || text.length > 100 || text.length < 2) return false;
       if (href.includes('x.com/') || href.includes('twitter.com/')) {
-        // Allow x.com links that aren't user profiles or statuses
         if (/^https?:\/\/(www\.)?(x|twitter)\.com\/[^/]+\/?$/.test(href)) return false;
         if (href.includes('/status/')) return false;
       }
       return true;
     }
 
+    // Extract inline text from a paragraph block, merging spans and links
+    function extractInlineText(node) {
+      let result = '';
+      node.childNodes.forEach(child => {
+        if (child.nodeType === 3) {
+          // Direct text node
+          result += child.textContent;
+        } else if (child.nodeType === 1) {
+          const tag = child.tagName;
+          if (tag === 'A' && isContentLink(child)) {
+            result += child.textContent.trim() + ' (' + child.href + ')';
+          } else if (tag === 'BR') {
+            result += '\n';
+          } else {
+            // Recurse into spans, divs that wrap text/links
+            result += extractInlineText(child);
+          }
+        }
+      });
+      return result;
+    }
+
+    // Walk the article at the paragraph/block level
     function walkArticleNode(node) {
       if (!node || !node.tagName) return;
       const tag = node.tagName;
@@ -268,32 +290,22 @@
         return;
       }
 
-      // Links - capture text and URL
-      if (tag === 'A' && isContentLink(node)) {
-        const text = node.textContent.trim();
-        const href = node.href;
-        const linkKey = text + '|' + href;
-        if (!seen.has(linkKey)) {
-          seen.add(linkKey);
-          contentParts.push(text + ' (' + href + ')');
-        }
-        return;
-      }
+      // DIV or SECTION that contains text content — treat as a paragraph block
+      // Extract all inline text (spans + links merged together)
+      const inlineText = extractInlineText(node).trim();
 
-      // Spans with direct text
-      if (tag === 'SPAN') {
-        const directText = Array.from(node.childNodes)
-          .filter(n => n.nodeType === 3)
-          .map(n => n.textContent.trim())
-          .join('');
-        if (directText.length > 15 && !seen.has(directText)) {
-          seen.add(directText);
-          contentParts.push(directText);
+      // If this block has substantial text, it's a paragraph — add it and don't recurse
+      if (inlineText.length > 15 && !seen.has(inlineText)) {
+        // Check it's not just a wrapper for child blocks we should recurse into
+        const hasChildBlocks = node.querySelector('h1, h2, h3, pre, section');
+        if (!hasChildBlocks) {
+          seen.add(inlineText);
+          contentParts.push(inlineText);
           return;
         }
       }
 
-      // Recurse children
+      // Recurse children for structural elements
       node.childNodes.forEach(child => {
         if (child.nodeType === 1) walkArticleNode(child);
       });
