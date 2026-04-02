@@ -218,37 +218,31 @@
     // Only attempt thread-following if we found multiple tweets from same author
     if (allTweets.length >= 2 && lastStatusLink) {
       try {
-        // Click the last tweet's timestamp to SPA-navigate to its page
+        const savedScroll = document.documentElement.scrollTop;
+
+        // Navigate to last tweet's page — X loads full thread context above it
         lastStatusLink.click();
+        await new Promise(r => setTimeout(r, 2500));
 
-        // Wait for X to load the new page with full thread context
-        await new Promise(r => setTimeout(r, 3000));
-
-        // Wait for more tweets to appear (X renders the full thread above the clicked tweet)
-        for (let i = 0; i < 10; i++) {
+        // Wait for thread to render
+        for (let i = 0; i < 8; i++) {
           const count = document.querySelectorAll('article[data-testid="tweet"]').length;
           if (count >= allTweets.length + 2) break;
-          await new Promise(r => setTimeout(r, 1000));
+          await new Promise(r => setTimeout(r, 800));
         }
 
-        // Scroll through to load all tweets in the virtual list
+        // Quick scroll to collect all tweets from virtual list
         const de = document.documentElement;
-        for (let i = 0; i < 15; i++) {
-          de.scrollTop += 800;
-          await new Promise(r => setTimeout(r, 400));
-
-          // Collect as we scroll (virtual list recycles nodes)
+        for (let i = 0; i < 12; i++) {
+          de.scrollTop += 1200;
+          await new Promise(r => setTimeout(r, 250));
           collectTweets();
         }
-        de.scrollTop = 0;
-        await new Promise(r => setTimeout(r, 300));
 
-        // Final collection
-        collectTweets();
-
-        // Navigate back to original URL
+        // Navigate back and restore position
         window.history.back();
-        await new Promise(r => setTimeout(r, 1500));
+        await new Promise(r => setTimeout(r, 1000));
+        document.documentElement.scrollTop = savedScroll;
       } catch (e) {
         console.error('Error following thread:', e);
         try { window.history.back(); } catch(e2) {}
