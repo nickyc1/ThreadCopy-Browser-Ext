@@ -268,36 +268,65 @@
 
       // Skip metadata areas
       if (node.getAttribute('data-testid') === 'User-Name' ||
+          node.getAttribute('data-testid') === 'app-text-transition-container' ||
           node.getAttribute('role') === 'group') return;
+
+      // Skip engagement/timestamp footer area
+      const text = node.textContent.trim();
+      if (/^\d+:\d+\s*(AM|PM)/.test(text) && text.includes('Views')) return;
+      if (/^\d+$/.test(text) && text.length < 10) return;
 
       // Headings
       if (tag === 'H1' || tag === 'H2' || tag === 'H3') {
-        const t = node.textContent.trim();
-        if (t && !seen.has(t)) {
-          seen.add(t);
-          contentParts.push('\n## ' + t + '\n');
+        if (text && !seen.has(text)) {
+          seen.add(text);
+          contentParts.push('\n## ' + text + '\n');
         }
         return;
       }
 
       // Code blocks
       if (tag === 'PRE') {
-        const t = node.textContent.trim();
-        if (t && !seen.has(t)) {
-          seen.add(t);
-          contentParts.push('\n```\n' + t + '\n```\n');
+        if (text && !seen.has(text)) {
+          seen.add(text);
+          contentParts.push('\n```\n' + text + '\n```\n');
+        }
+        return;
+      }
+
+      // Lists (UL/OL) — iterate LI children with line breaks
+      if (tag === 'UL' || tag === 'OL') {
+        const listItems = [];
+        node.querySelectorAll(':scope > li').forEach(li => {
+          const liText = extractInlineText(li).trim();
+          if (liText) listItems.push('- ' + liText);
+        });
+        if (listItems.length > 0) {
+          const listBlock = listItems.join('\n');
+          if (!seen.has(listBlock)) {
+            seen.add(listBlock);
+            contentParts.push(listBlock);
+          }
+        }
+        return;
+      }
+
+      // BLOCKQUOTE
+      if (tag === 'BLOCKQUOTE') {
+        const bqText = extractInlineText(node).trim();
+        if (bqText && !seen.has(bqText)) {
+          seen.add(bqText);
+          contentParts.push(bqText);
         }
         return;
       }
 
       // DIV or SECTION that contains text content — treat as a paragraph block
-      // Extract all inline text (spans + links merged together)
       const inlineText = extractInlineText(node).trim();
 
       // If this block has substantial text, it's a paragraph — add it and don't recurse
       if (inlineText.length > 15 && !seen.has(inlineText)) {
-        // Check it's not just a wrapper for child blocks we should recurse into
-        const hasChildBlocks = node.querySelector('h1, h2, h3, pre, section');
+        const hasChildBlocks = node.querySelector('h1, h2, h3, pre, section, ul, ol, blockquote');
         if (!hasChildBlocks) {
           seen.add(inlineText);
           contentParts.push(inlineText);
