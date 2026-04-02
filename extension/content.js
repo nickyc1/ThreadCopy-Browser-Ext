@@ -45,8 +45,22 @@
 
   // Check if current X page is an article (not a regular tweet/thread)
   function isTwitterArticle() {
-    return !!document.querySelector('[data-testid="TextColumn"], article [role="article"], [data-testid="article"]') ||
-           document.title.toLowerCase().includes('article');
+    // Check for "Article" label in the page header
+    let hasArticleLabel = false;
+    document.querySelectorAll('span').forEach(s => {
+      if (s.textContent.trim() === 'Article') hasArticleLabel = true;
+    });
+    if (hasArticleLabel) return true;
+
+    // Check for article-specific DOM elements
+    if (document.querySelector('[data-testid="TextColumn"], [data-testid="article"]')) return true;
+
+    // Check if there's a single tweet with no tweetText but has long body content
+    const tweets = document.querySelectorAll('article[data-testid="tweet"]');
+    const tweetTexts = document.querySelectorAll('[data-testid="tweetText"]');
+    if (tweets.length === 1 && tweetTexts.length === 0) return true;
+
+    return false;
   }
 
   // Auto-scroll to load all lazy-loaded content (Twitter threads only)
@@ -190,72 +204,75 @@
   // Extract article content from Twitter/X
   function extractTwitterArticle() {
     const posts = [];
-
-    // Get author info from the tweet that contains the article
     const tweetEl = document.querySelector('article[data-testid="tweet"]');
+    if (!tweetEl) return posts;
+
+    // Get author info
     let authorName = '';
     let authorHandle = '';
     let formattedTime = '';
 
-    if (tweetEl) {
-      const userNameEl = tweetEl.querySelector('[data-testid="User-Name"]');
-      if (userNameEl) {
-        const nameSpan = userNameEl.querySelector('span');
-        const handleLink = userNameEl.querySelector('a[href^="/"]');
-        authorName = nameSpan ? nameSpan.textContent.trim() : '';
-        authorHandle = handleLink ? handleLink.textContent.trim() : '';
+    const userNameEl = tweetEl.querySelector('[data-testid="User-Name"]');
+    if (userNameEl) {
+      const nameSpan = userNameEl.querySelector('span');
+      const handleLink = userNameEl.querySelector('a[href^="/"]');
+      authorName = nameSpan ? nameSpan.textContent.trim() : '';
+      authorHandle = handleLink ? handleLink.textContent.trim() : '';
+    }
+    const timeEl = tweetEl.querySelector('time');
+    const timestamp = timeEl ? timeEl.getAttribute('datetime') : '';
+    formattedTime = timestamp ? new Date(timestamp).toLocaleString() : '';
+
+    // Get the main title - find the first large-font span
+    let mainTitle = '';
+    tweetEl.querySelectorAll('span').forEach(s => {
+      if (mainTitle) return;
+      const directText = Array.from(s.childNodes)
+        .filter(n => n.nodeType === 3)
+        .map(n => n.textContent.trim())
+        .join('');
+      if (directText.length > 10 && directText.length < 300) {
+        try {
+          const fs = parseFloat(window.getComputedStyle(s).fontSize);
+          if (fs > 20) mainTitle = directText;
+        } catch(e) {}
       }
-      const timeEl = tweetEl.querySelector('time');
-      const timestamp = timeEl ? timeEl.getAttribute('datetime') : '';
-      formattedTime = timestamp ? new Date(timestamp).toLocaleString() : '';
-    }
+    });
 
-    // Extract article body text - try multiple selectors
-    let articleText = '';
-    const articleSelectors = [
-      '[data-testid="TextColumn"]',
-      'article [role="article"]',
-      '[data-testid="article"]',
-      'article .css-175oi2r [lang]',
-    ];
-
-    for (const sel of articleSelectors) {
-      const el = document.querySelector(sel);
-      if (el && el.textContent.trim().length > 100) {
-        articleText = el.textContent.trim();
-        break;
+    // Get all body paragraphs - spans with direct text content > 30 chars
+    const bodyParagraphs = [];
+    const seen = new Set();
+    tweetEl.querySelectorAll('span').forEach(el => {
+      const directText = Array.from(el.childNodes)
+        .filter(n => n.nodeType === 3)
+        .map(n => n.textContent.trim())
+        .join('');
+      if (directText.length > 30 && !seen.has(directText) && directText !== mainTitle) {
+        seen.add(directText);
+        bodyParagraphs.push(directText);
       }
-    }
+    });
 
-    // Fallback: grab all paragraph-like elements inside the main tweet area
-    if (!articleText) {
-      const paragraphs = [];
-      // Look for the article content area (usually has long text blocks)
-      document.querySelectorAll('article [data-testid="tweetText"], article [lang] span, article p').forEach(el => {
-        const text = el.textContent.trim();
-        if (text.length > 50 && !paragraphs.includes(text)) {
-          paragraphs.push(text);
-        }
-      });
-      articleText = paragraphs.join('\n\n');
-    }
-
-    // Get article title if present
-    const titleEl = document.querySelector('article h1, article h2, [data-testid="TextColumn"] h1');
-    const title = titleEl ? titleEl.textContent.trim() : '';
+    // Also grab h1/h2 subheadings inside the article
+    const subheadings = new Set();
+    tweetEl.querySelectorAll('h1, h2, h3').forEach(h => {
+      const text = h.textContent.trim();
+      if (text && text !== mainTitle) subheadings.add(text);
+    });
 
     // Get images
     const images = [];
-    document.querySelectorAll('article img').forEach(img => {
-      if (img.src && !img.src.includes('emoji') && !img.src.includes('profile') &&
-          !img.src.includes('avatar') && img.naturalWidth > 100) {
+    tweetEl.querySelectorAll('img').forEach(img => {
+      if (img.src && !img.src.includes('emoji') && !img.src.includes('profile_images') &&
+          !img.src.includes('avatar') && img.width > 80) {
         images.push(img.src);
       }
     });
 
-    const fullText = title ? title + '\n\n' + articleText : articleText;
+    const articleBody = bodyParagraphs.join('\n\n');
+    const fullText = mainTitle ? mainTitle + '\n\n' + articleBody : articleBody;
 
-    if (fullText) {
+    if (fullText.length > 0) {
       posts.push({
         index: 1,
         authorName,
