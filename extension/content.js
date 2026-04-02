@@ -223,42 +223,58 @@
     const timestamp = timeEl ? timeEl.getAttribute('datetime') : '';
     formattedTime = timestamp ? new Date(timestamp).toLocaleString() : '';
 
-    // Get the main title - find the first large-font span
-    let mainTitle = '';
-    tweetEl.querySelectorAll('span').forEach(s => {
-      if (mainTitle) return;
-      const directText = Array.from(s.childNodes)
-        .filter(n => n.nodeType === 3)
-        .map(n => n.textContent.trim())
-        .join('');
-      if (directText.length > 10 && directText.length < 300) {
-        try {
-          const fs = parseFloat(window.getComputedStyle(s).fontSize);
-          if (fs > 20) mainTitle = directText;
-        } catch(e) {}
-      }
-    });
-
-    // Get all body paragraphs - spans with direct text content > 30 chars
-    const bodyParagraphs = [];
+    // Walk the DOM tree in order to extract headings, text, and code blocks
+    const contentParts = [];
     const seen = new Set();
-    tweetEl.querySelectorAll('span').forEach(el => {
-      const directText = Array.from(el.childNodes)
-        .filter(n => n.nodeType === 3)
-        .map(n => n.textContent.trim())
-        .join('');
-      if (directText.length > 30 && !seen.has(directText) && directText !== mainTitle) {
-        seen.add(directText);
-        bodyParagraphs.push(directText);
-      }
-    });
 
-    // Also grab h1/h2 subheadings inside the article
-    const subheadings = new Set();
-    tweetEl.querySelectorAll('h1, h2, h3').forEach(h => {
-      const text = h.textContent.trim();
-      if (text && text !== mainTitle) subheadings.add(text);
-    });
+    function walkArticleNode(node) {
+      if (!node || !node.tagName) return;
+      const tag = node.tagName;
+
+      // Skip metadata areas
+      if (node.getAttribute('data-testid') === 'User-Name' ||
+          node.getAttribute('role') === 'group') return;
+
+      // Headings
+      if (tag === 'H1' || tag === 'H2' || tag === 'H3') {
+        const t = node.textContent.trim();
+        if (t && !seen.has(t)) {
+          seen.add(t);
+          contentParts.push('\n## ' + t + '\n');
+        }
+        return;
+      }
+
+      // Code blocks
+      if (tag === 'PRE') {
+        const t = node.textContent.trim();
+        if (t && !seen.has(t)) {
+          seen.add(t);
+          contentParts.push('\n```\n' + t + '\n```\n');
+        }
+        return;
+      }
+
+      // Spans with direct text
+      if (tag === 'SPAN') {
+        const directText = Array.from(node.childNodes)
+          .filter(n => n.nodeType === 3)
+          .map(n => n.textContent.trim())
+          .join('');
+        if (directText.length > 15 && !seen.has(directText)) {
+          seen.add(directText);
+          contentParts.push(directText);
+          return;
+        }
+      }
+
+      // Recurse children
+      node.childNodes.forEach(child => {
+        if (child.nodeType === 1) walkArticleNode(child);
+      });
+    }
+
+    walkArticleNode(tweetEl);
 
     // Get images
     const images = [];
@@ -269,8 +285,7 @@
       }
     });
 
-    const articleBody = bodyParagraphs.join('\n\n');
-    const fullText = mainTitle ? mainTitle + '\n\n' + articleBody : articleBody;
+    const fullText = contentParts.join('\n\n');
 
     if (fullText.length > 0) {
       posts.push({
