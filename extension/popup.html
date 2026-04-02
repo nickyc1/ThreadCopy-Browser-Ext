@@ -282,13 +282,6 @@
       const enabled = toggle.checked;
       chrome.storage.sync.set({ threadcopyEnabled: enabled });
       updateStatus(enabled);
-
-      // Notify all tabs to show/hide button
-      chrome.tabs.query({}, function(tabs) {
-        tabs.forEach(function(tab) {
-          chrome.tabs.sendMessage(tab.id, { action: 'toggleThreadCopy', enabled: enabled }).catch(function() {});
-        });
-      });
     });
 
     function updateStatus(enabled) {

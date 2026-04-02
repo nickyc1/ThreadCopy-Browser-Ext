@@ -941,13 +941,13 @@
     }
   }
 
-  // Listen for toggle messages from popup
-  chrome.runtime.onMessage.addListener((message) => {
-    if (message.action === 'toggleThreadCopy') {
-      if (message.enabled) {
-        showButton();
-      } else {
+  // Listen for toggle changes from popup via storage
+  chrome.storage.onChanged.addListener((changes) => {
+    if (changes.threadcopyEnabled) {
+      if (changes.threadcopyEnabled.newValue === false) {
         hideButton();
+      } else {
+        showButton();
       }
     }
   });
