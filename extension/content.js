@@ -63,11 +63,11 @@
     return false;
   }
 
-  // Auto-scroll to load lazy-loaded content (LinkedIn and Reddit only)
+  // Auto-scroll to load lazy-loaded content (Reddit only)
   async function scrollToLoadAll(platform) {
-    // Never scroll on Twitter — we use thread-following instead
-    if (platform === 'twitter') return;
-    if (platform !== 'linkedin' && platform !== 'reddit') return;
+    // Only scroll on Reddit — Twitter uses thread-following,
+    // LinkedIn loads all comments without scrolling
+    if (platform !== 'reddit') return;
 
     const getCount = () => document.querySelectorAll('.comments-comment-item, [data-testid="comment"], shreddit-comment, .Comment, .comment').length;
     const initialCount = getCount();
