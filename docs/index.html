@@ -350,15 +350,16 @@
       font-family: 'Inter', sans-serif;
       font-size: 13px;
       font-weight: 600;
-      cursor: pointer;
-      transition: background 0.15s, transform 0.15s;
+      cursor: grab;
+      transition: background 0.15s;
       z-index: 2;
       box-shadow: 0 4px 16px rgba(255, 45, 155, 0.3);
+      user-select: none;
+      -webkit-user-select: none;
     }
 
     .demo-tc-btn:hover {
       background: var(--pink-hover);
-      transform: translateY(-50%) translateX(-2px);
     }
 
     .demo-tc-btn svg {
@@ -884,6 +885,53 @@
   </footer>
 
 <script>
+// Draggable demo button
+(function() {
+  var btn = document.getElementById('demo-copy-btn');
+  var container = document.getElementById('demo-thread');
+  if (!btn || !container) return;
+
+  var isDragging = false;
+  var hasMoved = false;
+  var startY = 0;
+  var btnStartTop = 0;
+
+  btn.addEventListener('mousedown', function(e) {
+    isDragging = true;
+    hasMoved = false;
+    startY = e.clientY;
+    var rect = btn.getBoundingClientRect();
+    var containerRect = container.getBoundingClientRect();
+    btnStartTop = rect.top - containerRect.top;
+    btn.style.transition = 'background 0.15s';
+    e.preventDefault();
+  });
+
+  document.addEventListener('mousemove', function(e) {
+    if (!isDragging) return;
+    var delta = e.clientY - startY;
+    if (Math.abs(delta) > 4) hasMoved = true;
+    if (!hasMoved) return;
+    var containerRect = container.getBoundingClientRect();
+    var newTop = btnStartTop + delta;
+    newTop = Math.max(10, Math.min(containerRect.height - 50, newTop));
+    btn.style.top = newTop + 'px';
+    btn.style.transform = 'none';
+  });
+
+  document.addEventListener('mouseup', function() {
+    if (!isDragging) return;
+    isDragging = false;
+  });
+
+  btn.addEventListener('click', function(e) {
+    if (hasMoved) {
+      e.stopImmediatePropagation();
+      e.preventDefault();
+    }
+  }, true);
+})();
+
 function demoCopy() {
   var text = "=== Thread from Reddit ===\n" +
     "URL: https://reddit.com/r/productivity/comments/abc123/\n" +
