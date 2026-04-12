@@ -43,6 +43,103 @@
     }
   }
 
+  // Check if current LinkedIn page is a Pulse article (not a regular post)
+  function isLinkedInArticle() {
+    return window.location.pathname.includes('/pulse/') ||
+           !!document.querySelector('.reader-article-content, .reader-content-blocks-container');
+  }
+
+  // Extract article content from LinkedIn Pulse
+  function extractLinkedInArticle() {
+    const posts = [];
+
+    // Get title
+    const titleEl = document.querySelector('h1');
+    const title = titleEl ? titleEl.textContent.trim() : '';
+
+    // Get author
+    let authorName = '';
+    const authorSelectors = [
+      '.reader-author-info__author-name',
+      'a[data-tracking-control-name*="author"]',
+      '.article-author',
+    ];
+    for (const sel of authorSelectors) {
+      const el = document.querySelector(sel);
+      if (el) { authorName = el.textContent.trim(); break; }
+    }
+
+    // Get publish date
+    const timeEl = document.querySelector('.reader-author-info__publish-date, time, .article-date');
+    const timestamp = timeEl ? timeEl.textContent.trim() : '';
+
+    // Get article body from content blocks
+    const contentParts = [];
+    const container = document.querySelector('.reader-content-blocks-container');
+
+    if (container) {
+      container.querySelectorAll(':scope > *').forEach(el => {
+        const tag = el.tagName;
+        const text = el.textContent.trim();
+        if (!text) return;
+
+        if (tag === 'H1' || tag === 'H2' || tag === 'H3') {
+          contentParts.push('\n## ' + text + '\n');
+        } else if (tag === 'P') {
+          contentParts.push(text);
+        } else if (tag === 'UL' || tag === 'OL') {
+          const items = [];
+          el.querySelectorAll('li').forEach(li => {
+            items.push('- ' + li.textContent.trim());
+          });
+          if (items.length) contentParts.push(items.join('\n'));
+        } else if (tag === 'BLOCKQUOTE') {
+          contentParts.push('> ' + text);
+        } else if (tag === 'PRE' || tag === 'CODE') {
+          contentParts.push('```\n' + text + '\n```');
+        } else if (text.length > 20) {
+          contentParts.push(text);
+        }
+      });
+    }
+
+    // Fallback: try getting text from the reader content area
+    if (contentParts.length === 0) {
+      const readerContent = document.querySelector('.reader-article-content');
+      if (readerContent) {
+        const text = readerContent.textContent.trim();
+        if (text.length > 100) contentParts.push(text);
+      }
+    }
+
+    // Get images
+    const images = [];
+    const imgContainer = container || document.querySelector('.reader-article-content');
+    if (imgContainer) {
+      imgContainer.querySelectorAll('img').forEach(img => {
+        if (img.src && !img.src.includes('avatar') && !img.src.includes('profile') && img.width > 80) {
+          images.push(img.src);
+        }
+      });
+    }
+
+    const fullText = title ? title + '\n\n' + contentParts.join('\n\n') : contentParts.join('\n\n');
+
+    if (fullText.length > 0) {
+      posts.push({
+        index: 1,
+        authorName,
+        authorHandle: '',
+        timestamp,
+        text: fullText,
+        images,
+        isMainPost: true
+      });
+    }
+
+    return posts;
+  }
+
   // Check if current X page is an article (not a regular tweet/thread)
   function isTwitterArticle() {
     // Check for "Article" label in the page header
@@ -906,7 +1003,7 @@
           posts = isTwitterArticle() ? extractTwitterArticle() : await extractTwitterThread();
           break;
         case 'linkedin':
-          posts = extractLinkedInThread();
+          posts = isLinkedInArticle() ? extractLinkedInArticle() : extractLinkedInThread();
           break;
         case 'reddit':
           posts = extractRedditThread();
