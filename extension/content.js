@@ -273,87 +273,83 @@
   }
 
   // Extract thread content from Twitter/X
-  // Strategy: if the thread appears truncated, navigate to the last visible
-  // tweet's page where X renders the full thread context above it, then
-  // extract all tweets and navigate back.
+  // Strategy: stay on the current page and scroll down to lazy-load the
+  // author's self-thread, collecting each of their tweets in order. We never
+  // navigate away — navigating into an individual tweet was unreliable, made
+  // the page visibly jump, and sometimes left us copying just one post.
   async function extractTwitterThread() {
-    const seenTexts = new Set();
-    const originalUrl = location.href;
-
-    // Get OP handle to filter self-thread
-    const firstTweet = document.querySelector('article[data-testid="tweet"]');
-    const opHandle = firstTweet?.querySelector('[data-testid="User-Name"] a[href^="/"]')?.textContent?.trim()?.toLowerCase() || '';
-
+    const seenKeys = new Set();
     const allTweets = [];
 
-    // Collect unique tweets from current DOM into allTweets
+    // Identify the thread author from the first (main) tweet so we only
+    // collect their self-thread and skip replies from other people.
+    const firstTweet = document.querySelector('article[data-testid="tweet"]');
+    const opHandle = firstTweet
+      ?.querySelector('[data-testid="User-Name"] a[href^="/"]')
+      ?.textContent?.trim()?.toLowerCase() || '';
+
+    // Prefer the tweet's own status URL as the dedup key (unique per tweet);
+    // fall back to leading text when no link is present.
+    const keyFor = (data) => data.statusHref || data.text.substring(0, 100);
+
     function collectTweets() {
       document.querySelectorAll('article[data-testid="tweet"]').forEach(tweet => {
         const data = extractTweetData(tweet);
         if (!data) return;
 
-        // Only include thread author's tweets
-        if (opHandle && data.authorHandle.toLowerCase() !== opHandle) return;
+        // Only include the thread author's own tweets
+        if (opHandle && data.authorHandle && data.authorHandle.toLowerCase() !== opHandle) return;
 
-        const key = data.text.substring(0, 80);
-        if (seenTexts.has(key)) return;
-        seenTexts.add(key);
-
+        const key = keyFor(data);
+        if (seenKeys.has(key)) return;
+        seenKeys.add(key);
         allTweets.push(data);
       });
     }
 
-    // First pass: extract from current page
+    // Expand any "Show more" links currently in view (inline — no navigation)
+    function expandVisible() {
+      document.querySelectorAll('[data-testid="tweet-text-show-more-link"]').forEach(btn => {
+        try { btn.click(); } catch (e) {}
+      });
+    }
+
+    // First pass over whatever is already rendered
+    expandVisible();
     collectTweets();
 
-    // Check if this looks like a truncated thread (thread author has more posts)
-    // Get the last tweet's status link
-    const lastTweetEl = Array.from(document.querySelectorAll('article[data-testid="tweet"]')).pop();
-    const lastStatusLink = lastTweetEl?.querySelector('a[href*="/status/"] time')?.parentElement;
-    const lastHref = lastStatusLink?.getAttribute('href') || '';
+    // Scroll down through the virtualized timeline, collecting the author's
+    // tweets as they render. Stop once several scrolls yield nothing new
+    // (i.e. we've passed the end of the self-thread) or we hit the bottom.
+    const scroller = document.scrollingElement || document.documentElement;
+    const startScroll = scroller.scrollTop;
+    let lastCount = allTweets.length;
+    let stableRounds = 0;
 
-    // Only attempt thread-following if we found multiple tweets from same author
-    if (allTweets.length >= 2 && lastStatusLink) {
-      try {
-        const savedScroll = document.documentElement.scrollTop;
+    for (let i = 0; i < 40; i++) {
+      scroller.scrollTo(0, scroller.scrollTop + Math.round(window.innerHeight * 0.8));
+      await new Promise(r => setTimeout(r, 400));
+      expandVisible();
+      collectTweets();
 
-        // Navigate to last tweet's page — X loads full thread context above it
-        lastStatusLink.click();
-        await new Promise(r => setTimeout(r, 2500));
+      if (allTweets.length === lastCount) {
+        stableRounds++;
+        if (stableRounds >= 4) break;
+      } else {
+        stableRounds = 0;
+        lastCount = allTweets.length;
+      }
 
-        // Wait for thread to render
-        for (let i = 0; i < 8; i++) {
-          const count = document.querySelectorAll('article[data-testid="tweet"]').length;
-          if (count >= allTweets.length + 2) break;
-          await new Promise(r => setTimeout(r, 800));
-        }
-
-        // Scroll to collect all thread author tweets from virtual list
-        const de = document.documentElement;
-        let noNewCount = 0;
-        for (let i = 0; i < 20; i++) {
-          const beforeCount = allTweets.length;
-          de.scrollTop += 1000;
-          await new Promise(r => setTimeout(r, 300));
-          collectTweets();
-
-          if (allTweets.length > beforeCount) {
-            noNewCount = 0; // Found new tweets, keep going
-          } else {
-            noNewCount++;
-            if (noNewCount >= 3) break; // 3 scrolls with no new author tweets, done
-          }
-        }
-
-        // Navigate back and restore position
-        window.history.back();
-        await new Promise(r => setTimeout(r, 1000));
-        document.documentElement.scrollTop = savedScroll;
-      } catch (e) {
-        console.error('Error following thread:', e);
-        try { window.history.back(); } catch(e2) {}
+      // Reached the very bottom of the page
+      if (scroller.scrollTop + window.innerHeight >= scroller.scrollHeight - 4) {
+        collectTweets();
+        break;
       }
     }
+
+    // Restore the reader's original scroll position — no navigation happened
+    scroller.scrollTo(0, startScroll);
+    await new Promise(r => setTimeout(r, 200));
 
     // Re-index
     allTweets.forEach((t, i) => { t.index = i + 1; });
@@ -906,6 +902,19 @@
     }
   }
 
+  // Compute the toast's vertical position relative to the button. Place it
+  // above the button by default, but flip below when the button is too near
+  // the top of the viewport (otherwise the toast is clipped off-screen).
+  function computeToastTop(btn) {
+    if (!btn) return 'calc(50% - 50px)';
+    const rect = btn.getBoundingClientRect();
+    const gap = 44; // approx toast height + spacing
+    if (rect.top < gap + 8) {
+      return (rect.bottom + 8) + 'px'; // not enough room above → below button
+    }
+    return (rect.top - gap) + 'px';    // above button
+  }
+
   // Show toast notification
   function showToast(message, isError = false) {
     // Remove any existing toast
@@ -917,9 +926,9 @@
     toast.id = 'threadcopy-toast';
     toast.textContent = message;
 
-    // Position above button
+    // Position relative to the button (above by default, below if too high)
     const btn = document.getElementById('threadcopy-btn');
-    const topPos = btn ? (btn.getBoundingClientRect().top - 44) + 'px' : 'calc(50% - 50px)';
+    const topPos = computeToastTop(btn);
 
     // Apply all styles inline to avoid CSS class issues after SPA nav
     toast.style.cssText = `
@@ -1116,8 +1125,7 @@
     const updateToastPos = () => {
       const toast = document.getElementById('threadcopy-toast');
       if (toast) {
-        const rect = button.getBoundingClientRect();
-        toast.style.top = (rect.top - 44) + 'px';
+        toast.style.top = computeToastTop(button);
       }
     };
     const observer2 = new MutationObserver(updateToastPos);
