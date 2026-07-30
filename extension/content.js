@@ -272,39 +272,53 @@
     return null;
   }
 
-  // Extract thread content from Twitter/X
-  // Strategy: stay on the current page and scroll down to lazy-load the
-  // author's self-thread, collecting each of their tweets in order. We never
-  // navigate away — navigating into an individual tweet was unreliable, made
-  // the page visibly jump, and sometimes left us copying just one post.
+  // Extract thread content from Twitter/X.
+  //
+  // A "thread" = the main tweet plus the author's own consecutive self-replies
+  // at the top of the page. The moment a tweet from a DIFFERENT person appears,
+  // we've reached the comment/replies section and stop. Without that boundary
+  // we'd scoop up the author's scattered one-line replies to commenters, which
+  // are NOT part of the thread. We stay on the page and scroll in place — we
+  // never navigate away.
   async function extractTwitterThread() {
+    const firstTweet = document.querySelector('article[data-testid="tweet"]');
+    if (!firstTweet) return [];
+
+    const handleOf = (el) =>
+      el?.querySelector('[data-testid="User-Name"] a[href^="/"]')
+        ?.textContent?.trim()?.toLowerCase() || '';
+
+    const opHandle = handleOf(firstTweet);
+
     const seenKeys = new Set();
     const allTweets = [];
-
-    // Identify the thread author from the first (main) tweet so we only
-    // collect their self-thread and skip replies from other people.
-    const firstTweet = document.querySelector('article[data-testid="tweet"]');
-    const opHandle = firstTweet
-      ?.querySelector('[data-testid="User-Name"] a[href^="/"]')
-      ?.textContent?.trim()?.toLowerCase() || '';
+    let reachedReplies = false; // flips true once we pass the author's thread
 
     // Prefer the tweet's own status URL as the dedup key (unique per tweet);
     // fall back to leading text when no link is present.
     const keyFor = (data) => data.statusHref || data.text.substring(0, 100);
 
-    function collectTweets() {
-      document.querySelectorAll('article[data-testid="tweet"]').forEach(tweet => {
+    // Walk the currently-rendered tweets in DOM (visual) order. Collect the
+    // author's tweets; bail out at the first tweet authored by anyone else.
+    function collectContiguous() {
+      const articles = document.querySelectorAll('article[data-testid="tweet"]');
+      for (const tweet of articles) {
         const data = extractTweetData(tweet);
-        if (!data) return;
+        if (!data) continue;
 
-        // Only include the thread author's own tweets
-        if (opHandle && data.authorHandle && data.authorHandle.toLowerCase() !== opHandle) return;
+        const handle = (data.authorHandle || '').toLowerCase();
+
+        // First tweet by someone other than the author = start of replies.
+        if (opHandle && handle && handle !== opHandle) {
+          reachedReplies = true;
+          return;
+        }
 
         const key = keyFor(data);
-        if (seenKeys.has(key)) return;
+        if (seenKeys.has(key)) continue;
         seenKeys.add(key);
         allTweets.push(data);
-      });
+      }
     }
 
     // Expand any "Show more" links currently in view (inline — no navigation)
@@ -314,37 +328,33 @@
       });
     }
 
-    // First pass over whatever is already rendered
     expandVisible();
-    collectTweets();
+    collectContiguous();
 
-    // Scroll down through the virtualized timeline, collecting the author's
-    // tweets as they render. Stop once several scrolls yield nothing new
-    // (i.e. we've passed the end of the self-thread) or we hit the bottom.
+    // Scroll down only far enough to load the rest of the self-thread. Stop the
+    // moment we reach the replies section, run dry, or hit the bottom. If the
+    // very first pass already hit a reply (standalone tweet), we never scroll.
     const scroller = document.scrollingElement || document.documentElement;
     const startScroll = scroller.scrollTop;
     let lastCount = allTweets.length;
     let stableRounds = 0;
 
-    for (let i = 0; i < 40; i++) {
+    for (let i = 0; i < 25 && !reachedReplies; i++) {
       scroller.scrollTo(0, scroller.scrollTop + Math.round(window.innerHeight * 0.8));
       await new Promise(r => setTimeout(r, 400));
       expandVisible();
-      collectTweets();
+      collectContiguous();
 
       if (allTweets.length === lastCount) {
         stableRounds++;
-        if (stableRounds >= 4) break;
+        if (stableRounds >= 3) break;
       } else {
         stableRounds = 0;
         lastCount = allTweets.length;
       }
 
       // Reached the very bottom of the page
-      if (scroller.scrollTop + window.innerHeight >= scroller.scrollHeight - 4) {
-        collectTweets();
-        break;
-      }
+      if (scroller.scrollTop + window.innerHeight >= scroller.scrollHeight - 4) break;
     }
 
     // Restore the reader's original scroll position — no navigation happened
